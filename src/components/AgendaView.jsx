@@ -41,6 +41,11 @@ const AgendaView = () => {
         isDouble: false, // Carga doble horaria
         startBlock: timeBlocks[0],
         endBlock: timeBlocks[1], // Solo se usa si es doble
+        hasSecondDay: false, // Agregado: ¿Tiene segundo encuentro en la semana?
+        day2: 'Martes',      // Día del segundo encuentro
+        isDouble2: false,    // Carga doble horaria del segundo encuentro
+        startBlock2: timeBlocks[0],
+        endBlock2: timeBlocks[1],
         color: PREDEFINED_COLORS[0].id
     });
 
@@ -49,6 +54,8 @@ const AgendaView = () => {
     const [selectedEntryData, setSelectedEntryData] = useState(null);
     const [isEditingTime, setIsEditingTime] = useState(false); // Toggle para zona horaria en modal avanzado
     const [isEditingColor, setIsEditingColor] = useState(false);
+    const [dayEditingMode, setDayEditingMode] = useState(1); // 1 = Dia Principal, 2 = Dia "Hermano"
+    const [siblingEntryData, setSiblingEntryData] = useState(null); // Guarda los datos temp. del hermano para editarlo a la vez
 
     // Guardar en sistema
     useEffect(() => {
@@ -96,6 +103,11 @@ const AgendaView = () => {
             isDouble: false,
             startBlock: timeBlocks[0],
             endBlock: timeBlocks[1],
+            hasSecondDay: false,
+            day2: 'Martes',
+            isDouble2: false,
+            startBlock2: timeBlocks[0],
+            endBlock2: timeBlocks[1],
             color: PREDEFINED_COLORS[0].id
         });
         setIsModalOpen(true);
@@ -131,21 +143,55 @@ const AgendaView = () => {
             }
         }
 
-        // --- Verificación de Colisiones ---
-        const hasCollision = entries.some(entry => {
+        // --- Verificación de Colisiones Día 1 ---
+        const hasCollision1 = entries.some(entry => {
             if (entry.day === formData.day) {
                 return entry.blocks.some(b => blocksOccupied.includes(b));
             }
             return false;
         });
 
-        if (hasCollision) {
-            toast.error("Ya hay una materia en ese rango horario");
+        if (hasCollision1) {
+            toast.error(`Ya hay una materia en ese rango horario del día ${formData.day}`);
             return; // Bloquear guardado
         }
 
-        const newEntry = {
-            id: Date.now().toString(),
+        // --- Manejo del Segundo Día (Día 2) ---
+        let blocksOccupied2 = [];
+        if (formData.hasSecondDay) {
+            if (formData.day === formData.day2) return alert("El segundo día debe ser diferente al primero");
+
+            blocksOccupied2 = [formData.startBlock2];
+
+            if (formData.isDouble2) {
+                const startIndex2 = timeBlocks.indexOf(formData.startBlock2);
+                const endIndex2 = timeBlocks.indexOf(formData.endBlock2);
+
+                if (startIndex2 >= endIndex2) return alert(`El horario de fin del ${formData.day2} debe ser posterior al de inicio`);
+
+                for (let i = startIndex2 + 1; i <= endIndex2; i++) {
+                    blocksOccupied2.push(timeBlocks[i]);
+                }
+            }
+
+            // --- Verificación de Colisiones Día 2 ---
+            const hasCollision2 = entries.some(entry => {
+                if (entry.day === formData.day2) {
+                    return entry.blocks.some(b => blocksOccupied2.includes(b));
+                }
+                return false;
+            });
+
+            if (hasCollision2) {
+                toast.error(`Ya hay una actividad en ese rango horario del día ${formData.day2}`);
+                return;
+            }
+        }
+
+        const baseGroupId = Date.now().toString();
+
+        const entryDay1 = {
+            id: baseGroupId + '-1',
             type: formData.type,
             name: formData.name.trim(),
             day: formData.day,
@@ -153,7 +199,21 @@ const AgendaView = () => {
             color: formData.color
         };
 
-        setEntries(prev => [...prev, newEntry]);
+        let newEntries = [entryDay1];
+
+        if (formData.hasSecondDay) {
+            const entryDay2 = {
+                id: baseGroupId + '-2',
+                type: formData.type,
+                name: formData.name.trim(),
+                day: formData.day2,
+                blocks: blocksOccupied2,
+                color: formData.color
+            };
+            newEntries.push(entryDay2);
+        }
+
+        setEntries(prev => [...prev, ...newEntries]);
         setIsModalOpen(false);
         toast.success("Se ha creado correctamente");
     };
@@ -165,7 +225,9 @@ const AgendaView = () => {
     const handleOpenConfig = (entry) => {
         setIsEditingTime(false); // Reiniciar estado
         setIsEditingColor(false);
-        setSelectedEntryData({
+        setDayEditingMode(1); // Reinicia selector a dia 1
+
+        const configBase = {
             ...entry,
             modality: entry.modality || 'Presencial',
             room: entry.room || '',
@@ -174,49 +236,104 @@ const AgendaView = () => {
             tpDate: entry.tpDate || '',
             comments: entry.comments || '',
             displayPreference: entry.displayPreference || 'none'
-        });
+        };
+
+        setSelectedEntryData(configBase);
+
+        // Buscar si existe un hermano (Día 2 o Día 1 respectivamente) y precargarlo
+        const sibling = entries.find(e => e.name === entry.name && e.id !== entry.id);
+        if (sibling) {
+            setSiblingEntryData({ ...sibling });
+        } else {
+            setSiblingEntryData(null);
+        }
+
         setIsConfigModalOpen(true);
     };
 
     const handleSaveConfig = (e) => {
         e.preventDefault();
 
-        // Recalcular bloques si se habilitó la edición de horario
-        let calculatedBlocks = selectedEntryData.blocks;
+        // Arrays para guardar datos procesados
+        let blocksToUpdate1 = selectedEntryData.blocks;
+        let blocksToUpdate2 = siblingEntryData ? siblingEntryData.blocks : [];
+
+        // --- CALCULO Y VERIFICACIÓN DE COLISIONES SÓLO SI SE EDITÓ HORARIO ---
         if (isEditingTime) {
-            calculatedBlocks = [selectedEntryData.startBlock || timeBlocks[0]];
+            // DIA 1 (Selected)
+            blocksToUpdate1 = [selectedEntryData.startBlock || timeBlocks[0]];
             if (selectedEntryData.isDouble) {
-                const startIndex = timeBlocks.indexOf(calculatedBlocks[0]);
-                const endIndex = timeBlocks.indexOf(selectedEntryData.endBlock || timeBlocks[1]);
-
-                if (startIndex >= endIndex) return alert("El horario de fin debe ser posterior al de inicio");
-
-                for (let i = startIndex + 1; i <= endIndex; i++) {
-                    calculatedBlocks.push(timeBlocks[i]);
+                const s1 = timeBlocks.indexOf(blocksToUpdate1[0]);
+                const e1 = timeBlocks.indexOf(selectedEntryData.endBlock || timeBlocks[1]);
+                if (s1 >= e1) return alert("Horario Día 1: Fin debe ser posterior al inicio");
+                for (let i = s1 + 1; i <= e1; i++) blocksToUpdate1.push(timeBlocks[i]);
+            }
+            const col1 = entries.some(entry => {
+                if (entry.id !== selectedEntryData.id && entry.id !== (siblingEntryData?.id) && entry.day === selectedEntryData.day) {
+                    return entry.blocks.some(b => blocksToUpdate1.includes(b));
                 }
+                return false;
+            });
+            if (col1) return toast.error(`Colisión de horario detectada en el día ${selectedEntryData.day}`);
+
+            // DIA 2 (Sibling)
+            if (siblingEntryData) {
+                blocksToUpdate2 = [siblingEntryData.startBlock || timeBlocks[0]];
+                if (siblingEntryData.isDouble) {
+                    const s2 = timeBlocks.indexOf(blocksToUpdate2[0]);
+                    const e2 = timeBlocks.indexOf(siblingEntryData.endBlock || timeBlocks[1]);
+                    if (s2 >= e2) return alert("Horario Día 2: Fin debe ser posterior al inicio");
+                    for (let i = s2 + 1; i <= e2; i++) blocksToUpdate2.push(timeBlocks[i]);
+                }
+                const col2 = entries.some(entry => {
+                    if (entry.id !== siblingEntryData.id && entry.id !== selectedEntryData.id && entry.day === siblingEntryData.day) {
+                        return entry.blocks.some(b => blocksToUpdate2.includes(b));
+                    }
+                    return false;
+                });
+                if (col2) return toast.error(`Colisión de horario detectada en el día ${siblingEntryData.day}`);
+            }
+
+            if (siblingEntryData && selectedEntryData.day === siblingEntryData.day) {
+                return toast.error("El Día 1 y el Día 2 no pueden ser el mismo día.");
             }
         }
 
-        // --- Verificación de Colisiones (excluyendo a la misma materia que editamos)
-        const hasCollision = entries.some(entry => {
-            if (entry.id !== selectedEntryData.id && entry.day === selectedEntryData.day) {
-                return entry.blocks.some(b => calculatedBlocks.includes(b));
+        // --- ACTUALIZACION EN MASA ---
+        setEntries(prev => prev.map(entry => {
+            if (entry.id === selectedEntryData.id) {
+                return { ...selectedEntryData, name: selectedEntryData.name.trim(), blocks: blocksToUpdate1 };
+            } else if (siblingEntryData && entry.id === siblingEntryData.id) {
+                // Actualiza hermano con datos cruzados de metadatos del selected + sus propios horaros guardados en setState de hermano
+                return {
+                    ...siblingEntryData,
+                    name: selectedEntryData.name.trim(),
+                    modality: selectedEntryData.modality,
+                    room: selectedEntryData.room,
+                    ppDate: selectedEntryData.ppDate,
+                    spDate: selectedEntryData.spDate,
+                    tpDate: selectedEntryData.tpDate,
+                    comments: selectedEntryData.comments,
+                    displayPreference: selectedEntryData.displayPreference,
+                    color: selectedEntryData.color,
+                    blocks: blocksToUpdate2
+                };
+            } else if (entry.name === selectedEntryData.name) {
+                // Malla de seguridad por si hay algún clon triple
+                return {
+                    ...entry,
+                    modality: selectedEntryData.modality,
+                    room: selectedEntryData.room,
+                    ppDate: selectedEntryData.ppDate,
+                    spDate: selectedEntryData.spDate,
+                    tpDate: selectedEntryData.tpDate,
+                    comments: selectedEntryData.comments,
+                    displayPreference: selectedEntryData.displayPreference,
+                    color: selectedEntryData.color
+                };
             }
-            return false;
-        });
-
-        if (hasCollision) {
-            toast.error("Ya hay una materia en ese rango horario");
-            return;
-        }
-
-        setEntries(prev => prev.map(entry =>
-            entry.id === selectedEntryData.id ? {
-                ...selectedEntryData,
-                name: selectedEntryData.name.trim(),
-                blocks: calculatedBlocks
-            } : entry
-        ));
+            return entry;
+        }));
         setIsConfigModalOpen(false);
         toast.success("Horario modificado correctamente");
     };
@@ -321,7 +438,7 @@ const AgendaView = () => {
                                 <div className="modal-body step-2">
                                     <form onSubmit={handleSaveEntry}>
                                         <div className="form-group">
-                                            <label>Nombre de la {formData.type.toLowerCase()}</label>
+                                            <label>Nombre {formData.type === 'Materia' ? 'de la materia' : 'del curso'}</label>
                                             {formData.type === 'Materia' ? (
                                                 <select
                                                     value={formData.name}
@@ -342,52 +459,136 @@ const AgendaView = () => {
                                             )}
                                         </div>
 
-                                        <div className="form-row">
-                                            <div className="form-group half">
-                                                <label>Día de cursada</label>
-                                                <select
-                                                    value={formData.day}
-                                                    onChange={e => setFormData({ ...formData, day: e.target.value })}
-                                                >
-                                                    {days.map(d => <option key={d} value={d}>{d}</option>)}
-                                                </select>
-                                            </div>
-                                            <div className="form-group half checkbox-group">
-                                                <label className="checkbox-label">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={formData.isDouble}
-                                                        onChange={e => setFormData({ ...formData, isDouble: e.target.checked })}
-                                                    />
-                                                    Lapso personalizado
-                                                </label>
-                                            </div>
+                                        <div className="form-group checkbox-group" style={{ marginTop: '0.5rem', marginBottom: '0.5rem', paddingBottom: '0.5rem' }}>
+                                            <label className="checkbox-label" style={{ fontWeight: 'bold' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.hasSecondDay}
+                                                    onChange={e => setFormData({ ...formData, hasSecondDay: e.target.checked })}
+                                                />
+                                                Doble carga horaria
+                                            </label>
                                         </div>
 
-                                        <div className="form-row">
-                                            <div className="form-group half">
-                                                <label>Horario {formData.isDouble ? 'de Inicio' : ''}</label>
-                                                <select
-                                                    value={formData.startBlock}
-                                                    onChange={e => setFormData({ ...formData, startBlock: e.target.value })}
-                                                >
-                                                    {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
-                                                </select>
+                                        <div className="days-flex-container" style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+                                            {/* --- COLUMNA DÍA 1 --- */}
+                                            <div className="day-column" style={{ flex: '1', minWidth: '200px' }}>
+                                                {formData.hasSecondDay && <h4 style={{ margin: '0 0 0.5rem 0', color: '#64748b', fontSize: '0.9rem', textTransform: 'uppercase' }}>Día 1</h4>}
+                                                <div className="form-row">
+                                                    <div className="form-group half" style={{ width: formData.hasSecondDay ? '100%' : '' }}>
+                                                        <label>Día de cursada</label>
+                                                        <select
+                                                            value={formData.day}
+                                                            onChange={e => setFormData({ ...formData, day: e.target.value })}
+                                                        >
+                                                            {days.map(d => <option key={d} value={d}>{d}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    {!formData.hasSecondDay && (
+                                                        <div className="form-group half checkbox-group">
+                                                            <label className="checkbox-label">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={formData.isDouble}
+                                                                    onChange={e => setFormData({ ...formData, isDouble: e.target.checked })}
+                                                                />
+                                                                Lapso personalizado
+                                                            </label>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {formData.hasSecondDay && (
+                                                    <div className="form-group checkbox-group" style={{ marginBottom: '1rem' }}>
+                                                        <label className="checkbox-label">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={formData.isDouble}
+                                                                onChange={e => setFormData({ ...formData, isDouble: e.target.checked })}
+                                                            />
+                                                            Lapso personalizado
+                                                        </label>
+                                                    </div>
+                                                )}
+
+                                                <div className="form-row">
+                                                    <div className="form-group half" style={{ width: formData.hasSecondDay ? '100%' : '' }}>
+                                                        <label>Horario {formData.isDouble ? 'Inicio' : ''}</label>
+                                                        <select
+                                                            value={formData.startBlock}
+                                                            onChange={e => setFormData({ ...formData, startBlock: e.target.value })}
+                                                        >
+                                                            {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    {formData.isDouble && (
+                                                        <div className="form-group half" style={{ width: formData.hasSecondDay ? '100%' : '' }}>
+                                                            <label>Horario Fin</label>
+                                                            <select
+                                                                value={formData.endBlock}
+                                                                onChange={e => setFormData({ ...formData, endBlock: e.target.value })}
+                                                            >
+                                                                {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                            </select>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                            {formData.isDouble && (
-                                                <div className="form-group half">
-                                                    <label>Horario de Fin</label>
-                                                    <select
-                                                        value={formData.endBlock}
-                                                        onChange={e => setFormData({ ...formData, endBlock: e.target.value })}
-                                                    >
-                                                        {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
-                                                    </select>
+
+                                            {/* --- COLUMNA DÍA 2 --- */}
+                                            {formData.hasSecondDay && (
+                                                <div className="day-column" style={{ flex: '1', minWidth: '200px', borderLeft: '1px dashed #e2e8f0', paddingLeft: '1.5rem' }}>
+                                                    <h4 style={{ margin: '0 0 0.5rem 0', color: '#64748b', fontSize: '0.9rem', textTransform: 'uppercase' }}>Día 2</h4>
+                                                    <div className="form-row">
+                                                        <div className="form-group" style={{ width: '100%' }}>
+                                                            <label>Día de cursada</label>
+                                                            <select
+                                                                value={formData.day2}
+                                                                onChange={e => setFormData({ ...formData, day2: e.target.value })}
+                                                            >
+                                                                {days.filter(d => d !== formData.day).map(d => <option key={d} value={d}>{d}</option>)}
+                                                            </select>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="form-group checkbox-group" style={{ marginBottom: '1rem' }}>
+                                                        <label className="checkbox-label">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={formData.isDouble2}
+                                                                onChange={e => setFormData({ ...formData, isDouble2: e.target.checked })}
+                                                            />
+                                                            Lapso personalizado
+                                                        </label>
+                                                    </div>
+
+                                                    <div className="form-row">
+                                                        <div className="form-group" style={{ width: '100%' }}>
+                                                            <label>Horario {formData.isDouble2 ? 'Inicio' : ''}</label>
+                                                            <select
+                                                                value={formData.startBlock2}
+                                                                onChange={e => setFormData({ ...formData, startBlock2: e.target.value })}
+                                                            >
+                                                                {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                            </select>
+                                                        </div>
+                                                        {formData.isDouble2 && (
+                                                            <div className="form-group" style={{ width: '100%' }}>
+                                                                <label>Horario Fin</label>
+                                                                <select
+                                                                    value={formData.endBlock2}
+                                                                    onChange={e => setFormData({ ...formData, endBlock2: e.target.value })}
+                                                                >
+                                                                    {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                                </select>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
 
-                                        <div className="form-group color-picker-group">
+                                        <div className="form-group color-picker-group" style={{ marginTop: '1rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
                                             <label>Color en la Agenda</label>
                                             <div className="colors-container">
                                                 {PREDEFINED_COLORS.map(color => (
@@ -571,12 +772,22 @@ const AgendaView = () => {
                                                 {!isEditingTime ? (
                                                     <button type="button" className="btn-gray" onClick={() => {
                                                         setIsEditingTime(true);
+                                                        // Init states para Dia 1
                                                         setSelectedEntryData(prev => ({
                                                             ...prev,
                                                             isDouble: prev.blocks.length > 1,
                                                             startBlock: prev.blocks[0],
                                                             endBlock: prev.blocks[prev.blocks.length - 1]
                                                         }));
+                                                        // Init states para Dia 2 si existe
+                                                        if (siblingEntryData) {
+                                                            setSiblingEntryData(prev => ({
+                                                                ...prev,
+                                                                isDouble: prev.blocks.length > 1,
+                                                                startBlock: prev.blocks[0],
+                                                                endBlock: prev.blocks[prev.blocks.length - 1]
+                                                            }))
+                                                        }
                                                     }}>
                                                         Cambiar horario
                                                     </button>
@@ -594,45 +805,111 @@ const AgendaView = () => {
                                     {isEditingTime && (
                                         <div className="config-side-pane">
                                             <div className="edit-time-section dark-edit-section" style={{ padding: '1.5rem', backgroundColor: '#1e293b', borderRadius: '12px', border: '1px solid #334155', color: '#f8fafc', height: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                                <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#f8fafc', fontSize: '1.1rem', fontWeight: 'bold' }}>Modificar Día y Horario</h4>
+                                                <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#f8fafc', fontSize: '1.1rem', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    Modificar Horarios
+                                                </h4>
 
-                                                <div className="form-group">
-                                                    <label>Día de cursada</label>
-                                                    <select
-                                                        value={selectedEntryData.day}
-                                                        onChange={e => setSelectedEntryData({ ...selectedEntryData, day: e.target.value })}
-                                                    >
-                                                        {days.map(d => <option key={d} value={d}>{d}</option>)}
-                                                    </select>
-                                                </div>
-                                                <div className="form-group checkbox-group">
-                                                    <label className="checkbox-label" style={{ color: '#cbd5e1' }}>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selectedEntryData.isDouble}
-                                                            onChange={e => setSelectedEntryData({ ...selectedEntryData, isDouble: e.target.checked })}
-                                                        />
-                                                        Lapso personalizado
-                                                    </label>
-                                                </div>
-                                                <div className="form-group">
-                                                    <label>Horario {selectedEntryData.isDouble ? 'de Inicio' : ''}</label>
-                                                    <select
-                                                        value={selectedEntryData.startBlock || selectedEntryData.blocks[0]}
-                                                        onChange={e => setSelectedEntryData({ ...selectedEntryData, startBlock: e.target.value })}
-                                                    >
-                                                        {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
-                                                    </select>
-                                                </div>
-                                                {selectedEntryData.isDouble && (
-                                                    <div className="form-group">
-                                                        <label>Horario de Fin</label>
-                                                        <select
-                                                            value={selectedEntryData.endBlock || selectedEntryData.blocks[selectedEntryData.blocks.length - 1]}
-                                                            onChange={e => setSelectedEntryData({ ...selectedEntryData, endBlock: e.target.value })}
-                                                        >
-                                                            {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
-                                                        </select>
+                                                {/* SWITCHERS DIA 1 / DIA 2 SI TIENE HERMANO */}
+                                                {siblingEntryData && (
+                                                    <div className="day-switchers" style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setDayEditingMode(1)}
+                                                            style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: 'none', backgroundColor: dayEditingMode === 1 ? 'var(--primary-color)' : '#334155', color: dayEditingMode === 1 ? 'white' : '#94a3b8', cursor: 'pointer', fontWeight: 'bold' }}>
+                                                            Día 1
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setDayEditingMode(2)}
+                                                            style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: 'none', backgroundColor: dayEditingMode === 2 ? 'var(--primary-color)' : '#334155', color: dayEditingMode === 2 ? 'white' : '#94a3b8', cursor: 'pointer', fontWeight: 'bold' }}>
+                                                            Día 2
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {dayEditingMode === 1 ? (
+                                                    <div className="edit-form-day-wrapper animate-fade-in" key="d1">
+                                                        <div className="form-group">
+                                                            <label>Día de cursada {siblingEntryData && '(1)'}</label>
+                                                            <select
+                                                                value={selectedEntryData.day}
+                                                                onChange={e => setSelectedEntryData({ ...selectedEntryData, day: e.target.value })}
+                                                            >
+                                                                {days.map(d => <option key={d} value={d}>{d}</option>)}
+                                                            </select>
+                                                        </div>
+                                                        <div className="form-group checkbox-group">
+                                                            <label className="checkbox-label" style={{ color: '#cbd5e1' }}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={selectedEntryData.isDouble}
+                                                                    onChange={e => setSelectedEntryData({ ...selectedEntryData, isDouble: e.target.checked })}
+                                                                />
+                                                                Lapso personalizado
+                                                            </label>
+                                                        </div>
+                                                        <div className="form-group">
+                                                            <label>Horario {selectedEntryData.isDouble ? 'Inicio' : ''}</label>
+                                                            <select
+                                                                value={selectedEntryData.startBlock || selectedEntryData.blocks[0]}
+                                                                onChange={e => setSelectedEntryData({ ...selectedEntryData, startBlock: e.target.value })}
+                                                            >
+                                                                {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                            </select>
+                                                        </div>
+                                                        {selectedEntryData.isDouble && (
+                                                            <div className="form-group">
+                                                                <label>Horario Fin</label>
+                                                                <select
+                                                                    value={selectedEntryData.endBlock || selectedEntryData.blocks[selectedEntryData.blocks.length - 1]}
+                                                                    onChange={e => setSelectedEntryData({ ...selectedEntryData, endBlock: e.target.value })}
+                                                                >
+                                                                    {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                                </select>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : siblingEntryData && (
+                                                    <div className="edit-form-day-wrapper animate-fade-in" key="d2">
+                                                        <div className="form-group">
+                                                            <label>Día de cursada (2)</label>
+                                                            <select
+                                                                value={siblingEntryData.day}
+                                                                onChange={e => setSiblingEntryData({ ...siblingEntryData, day: e.target.value })}
+                                                            >
+                                                                {days.map(d => <option key={d} value={d}>{d}</option>)}
+                                                            </select>
+                                                        </div>
+                                                        <div className="form-group checkbox-group">
+                                                            <label className="checkbox-label" style={{ color: '#cbd5e1' }}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={siblingEntryData.isDouble}
+                                                                    onChange={e => setSiblingEntryData({ ...siblingEntryData, isDouble: e.target.checked })}
+                                                                />
+                                                                Lapso personalizado
+                                                            </label>
+                                                        </div>
+                                                        <div className="form-group">
+                                                            <label>Horario {siblingEntryData.isDouble ? 'Inicio' : ''}</label>
+                                                            <select
+                                                                value={siblingEntryData.startBlock || siblingEntryData.blocks[0]}
+                                                                onChange={e => setSiblingEntryData({ ...siblingEntryData, startBlock: e.target.value })}
+                                                            >
+                                                                {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                            </select>
+                                                        </div>
+                                                        {siblingEntryData.isDouble && (
+                                                            <div className="form-group">
+                                                                <label>Horario Fin</label>
+                                                                <select
+                                                                    value={siblingEntryData.endBlock || siblingEntryData.blocks[siblingEntryData.blocks.length - 1]}
+                                                                    onChange={e => setSiblingEntryData({ ...siblingEntryData, endBlock: e.target.value })}
+                                                                >
+                                                                    {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                                </select>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>

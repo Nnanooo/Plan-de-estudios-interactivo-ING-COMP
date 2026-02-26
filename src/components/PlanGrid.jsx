@@ -40,6 +40,34 @@ const PlanGrid = ({ paintMode, opcionales1, opcionales2, electivas1, electivas2 
     const [activeModal, setActiveModal] = useState(null); // guardará el ID de la materia optativa clickeada
     const [tempOption, setTempOption] = useState(null); // opcion seleccionada en el form del modal
 
+    // Estado local para materias en curso desde la Agenda
+    const [agendaActiveSubjects, setAgendaActiveSubjects] = useState([]);
+
+    useEffect(() => {
+        const fetchAgenda = () => {
+            try {
+                const saved = localStorage.getItem('agendaEntries');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    // Quedarse con materias únicas y su color asignado
+                    const activeSet = new Map();
+                    parsed.filter(e => e.type === 'Materia').forEach(e => {
+                        if (!activeSet.has(e.name)) {
+                            activeSet.set(e.name, { name: e.name, color: e.color });
+                        }
+                    });
+                    setAgendaActiveSubjects(Array.from(activeSet.values()));
+                } else {
+                    setAgendaActiveSubjects([]);
+                }
+            } catch (err) { }
+        };
+
+        fetchAgenda();
+        window.addEventListener('agendaUpdated', fetchAgenda);
+        return () => window.removeEventListener('agendaUpdated', fetchAgenda);
+    }, []);
+
     useEffect(() => {
         localStorage.setItem('planDinamicoStatuses', JSON.stringify(subjectStatuses));
         window.dispatchEvent(new Event('planProgressUpdated'));
@@ -155,19 +183,26 @@ const PlanGrid = ({ paintMode, opcionales1, opcionales2, electivas1, electivas2 
                                         )}
                                     </td>
 
-                                    {row.materias.map((materia, index) => (
-                                        materia ? (
+                                    {row.materias.map((materia, index) => {
+                                        let isCursando = null;
+                                        if (materia) {
+                                            const optName = ((materia.nombre === 'Asignatura Optativa' || materia.nombre === 'Asignatura Electiva') && optativasChoices[materia.id]) ? optativasChoices[materia.id] : materia.nombre;
+                                            isCursando = agendaActiveSubjects.find(s => s.name === optName);
+                                        }
+
+                                        return materia ? (
                                             <SubjectCell
                                                 key={materia.id}
                                                 materia={materia}
                                                 status={subjectStatuses[materia.id] || null}
                                                 customName={optativasChoices[materia.id]}
                                                 onToggle={() => handleToggle(materia)}
+                                                isCursando={isCursando}
                                             />
                                         ) : (
                                             <td key={`empty-${row.cuatrimestre}-${index}`} className="empty-cell"></td>
-                                        )
-                                    ))}
+                                        );
+                                    })}
                                 </tr>
                             );
                         })}

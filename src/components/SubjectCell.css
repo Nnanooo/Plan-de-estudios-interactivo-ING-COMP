@@ -87,3 +87,73 @@ body.dark-mode .empty-cell {
     min-height: 60px;
     padding: 0 0.25rem;
 }
+
+/* ====================
+   AGENDA SYNC (Cursando)
+   ==================== */
+.cursando-activa {
+    position: relative;
+    z-index: 1;
+}
+
+/* Efecto Borde Marching Ants (Borde punteado rotativo celeste) */
+.cursando-activa::after {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    background-image: linear-gradient(90deg, #0ea5e9 50%, transparent 50%),
+        linear-gradient(90deg, #0ea5e9 50%, transparent 50%),
+        linear-gradient(0deg, #0ea5e9 50%, transparent 50%),
+        linear-gradient(0deg, #0ea5e9 50%, transparent 50%);
+    background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+    background-size: 15px 3px, 15px 3px, 3px 15px, 3px 15px;
+    background-position: left top, right bottom, left bottom, right top;
+    animation: marching-ants 0.8s infinite linear;
+    pointer-events: none;
+    z-index: 10;
+}
+
+body.dark-mode .cursando-activa::after {
+    background-image: linear-gradient(90deg, #38bdf8 50%, transparent 50%),
+        linear-gradient(90deg, #38bdf8 50%, transparent 50%),
+        linear-gradient(0deg, #38bdf8 50%, transparent 50%),
+        linear-gradient(0deg, #38bdf8 50%, transparent 50%);
+}
+
+@keyframes marching-ants {
+    0% {
+        background-position: left top, right bottom, left bottom, right top;
+    }
+
+    100% {
+        background-position: left 15px top, right 15px bottom, left bottom 15px, right top 15px;
+    }
+}
+
+.agenda-subject-icon {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0.95;
+    z-index: 2;
+    transition: transform 0.2s;
+    background-color: rgba(255, 255, 255, 0.85);
+    border-radius: 50%;
+    padding: 3px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+body.dark-mode .agenda-subject-icon {
+    background-color: rgba(30, 41, 59, 0.85);
+    /* Slate 800 tranparente */
+}
+
+.agenda-subject-icon:hover {
+    transform: scale(1.1);
+}

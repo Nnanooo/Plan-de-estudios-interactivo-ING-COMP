@@ -110,3 +110,31 @@ export const planData = [
         ]
     }
 ];
+
+export const opcionales1 = [
+    "Diseño de Páginas Web",
+    "Fundamentos de Computación",
+    "Arquitecturas Avanzadas",
+    "Inteligencia Artificial",
+    "Soberanía y Geopolítica Tecnológica"
+];
+
+export const opcionales2 = [
+    "Sistemas Operativos Avanzados",
+    "Ingeniería de Requerimientos",
+    "Arquitecturas Avanzadas",
+    "Ingeniería de Software II",
+    "Diseño y Análisis Digital de Objetos y Fenómenos Físicos"
+];
+
+export const electivas1 = [
+    "Sistemas de Información Geográfica II",
+    "Gestión de los servicios de Enfermería",
+    "Infraestructura de Datos Espaciales"
+];
+
+export const electivas2 = [
+    "Instrumento I",
+    "Taller de herramientas SIG II",
+    "Teledetección"
+];

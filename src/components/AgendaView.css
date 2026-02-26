@@ -1,0 +1,940 @@
+.agenda-container {
+    width: 100%;
+    margin: 0 auto;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+.agenda-wrapper {
+    overflow: hidden;
+    width: 100%;
+}
+
+.agenda-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+    table-layout: fixed;
+}
+
+.agenda-table th,
+.agenda-table td {
+    border: 1px solid #4b5563;
+    /* Gris oscuro para el borde */
+    padding: 0;
+}
+
+.time-header,
+.day-header {
+    background-color: #6b7280;
+    /* Gris medio */
+    color: #ffffff;
+    font-weight: 600;
+    padding: 1rem 0;
+    font-size: 1.05rem;
+    letter-spacing: 0;
+    text-align: center;
+}
+
+.time-header {
+    width: 90px;
+    line-height: 1.2;
+}
+
+.time-cell {
+    text-align: center;
+    font-weight: 500;
+    font-size: 1rem;
+    color: #1f2937;
+    background-color: #ffffff;
+    padding: 0 0.5rem !important;
+    height: 95px;
+}
+
+.agenda-cell {
+    background-color: #e5e7eb;
+    /* Gris muy clarito base */
+    transition: all 0.2s ease;
+    height: 95px;
+    /* Altura estrictamente fija */
+    cursor: pointer;
+    padding: 0 !important;
+}
+
+.agenda-cell:hover {
+    background-color: #cbd5e1;
+    /* Hover sutil */
+}
+
+.cell-content {
+    width: 100%;
+    height: 95px;
+    max-height: 95px;
+    display: flex;
+    flex-direction: column;
+    /* Pilar para centrar varios tags */
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    font-weight: 500;
+    font-size: 0.95rem;
+    text-align: center;
+    padding: 0.25rem;
+    box-sizing: border-box;
+    overflow: hidden;
+    /* Corta el desborde para no arruinar la grilla */
+}
+
+/* ============================
+   DARK MODE SUPPORT
+   ============================ */
+
+body.dark-mode .agenda-table {
+    background-color: transparent;
+}
+
+body.dark-mode .agenda-table th,
+body.dark-mode .agenda-table td {
+    border-color: #4b5563;
+}
+
+body.dark-mode .time-header,
+body.dark-mode .day-header {
+    background-color: #374151;
+    color: #f3f4f6;
+}
+
+body.dark-mode .time-cell {
+    color: #e5e7eb;
+    background-color: #1f2937;
+}
+
+body.dark-mode .agenda-cell {
+    background-color: #1e293b;
+    /* Slate 800 */
+}
+
+body.dark-mode .agenda-cell:hover {
+    background-color: #334155;
+    /* Slate 700 */
+}
+
+body.dark-mode .cell-content {
+    color: #94a3b8;
+}
+
+/* ============================
+   BOTON AGREGAR AGENDA
+   ============================ */
+
+.agenda-controls {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 2rem;
+    padding: 0;
+}
+
+.add-agenda-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #10b981;
+    /* Verde esmeralda premium */
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    border-radius: 9999px;
+    /* Botón píldora moderno */
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3), 0 2px 4px -1px rgba(16, 185, 129, 0.2);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.add-agenda-btn:hover {
+    background-color: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px -1px rgba(16, 185, 129, 0.4), 0 4px 6px -1px rgba(16, 185, 129, 0.2);
+}
+
+.add-agenda-btn:active {
+    transform: translateY(0);
+}
+
+/* ============================
+   TARJETAS Y CELDAS RENDEREADAS
+   ============================ */
+
+.agenda-cell {
+    position: relative;
+    padding: 0 !important;
+}
+
+/* Este padding quita bordes al ocupar todo el bloque */
+.cell-content.continued-block {
+    border-top: none;
+}
+
+.entry-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 0.5rem;
+    box-sizing: border-box;
+}
+
+.entry-type {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    opacity: 0.7;
+    margin-bottom: 0.35rem;
+    display: block;
+    /* Asegura el salto de linea */
+}
+
+.entry-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.empty-placeholder {
+    color: transparent;
+    font-size: 1.5rem;
+    transition: color 0.2s;
+}
+
+.agenda-cell:hover .empty-placeholder {
+    color: #cbd5e1;
+}
+
+/* ============================
+   TEMAS DE COLOR HERMOSOS
+   ============================ */
+
+/* 1. Ruby / Cereza */
+.theme-ruby {
+    background-color: #fff1f2 !important;
+    color: #be123c !important;
+    border-left: 5px solid #e11d48;
+}
+
+body.dark-mode .theme-ruby {
+    background-color: #4c0519 !important;
+    color: #fecdd3 !important;
+    border-left: 5px solid #f43f5e;
+}
+
+/* 2. Índigo / Royal */
+.theme-indigo {
+    background-color: #eef2ff !important;
+    color: #4338ca !important;
+    border-left: 5px solid #6366f1;
+}
+
+body.dark-mode .theme-indigo {
+    background-color: #312e81 !important;
+    color: #c7d2fe !important;
+    border-left: 5px solid #818cf8;
+}
+
+/* 3. Esmeralda */
+.theme-emerald {
+    background-color: #ecfdf5 !important;
+    color: #047857 !important;
+    border-left: 5px solid #10b981;
+}
+
+body.dark-mode .theme-emerald {
+    background-color: #064e3b !important;
+    color: #a7f3d0 !important;
+    border-left: 5px solid #34d399;
+}
+
+/* 4. Ámbar / Dorado */
+.theme-amber {
+    background-color: #fffbeb !important;
+    color: #b45309 !important;
+    border-left: 5px solid #f59e0b;
+}
+
+body.dark-mode .theme-amber {
+    background-color: #78350f !important;
+    color: #fde68a !important;
+    border-left: 5px solid #fbbf24;
+}
+
+/* 5. Violeta Oscuro */
+.theme-violet {
+    background-color: #f5f3ff !important;
+    color: #6d28d9 !important;
+    border-left: 5px solid #8b5cf6;
+}
+
+body.dark-mode .theme-violet {
+    background-color: #2e1065 !important;
+    color: #ddd6fe !important;
+    border-left: 5px solid #a78bfa;
+}
+
+/* 6. Cyan / Marino */
+.theme-cyan {
+    background-color: #ecfeff !important;
+    color: #0f766e !important;
+    border-left: 5px solid #06b6d4;
+}
+
+body.dark-mode .theme-cyan {
+    background-color: #164e63 !important;
+    color: #a5f3fc !important;
+    border-left: 5px solid #22d3ee;
+}
+
+/* ============================
+   MODAL AGENDA (DISEÑO PULIDO)
+   ============================ */
+
+.agenda-modal {
+    max-width: 550px !important;
+    width: 90% !important;
+    border-radius: 16px !important;
+    padding: 0 !important;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+}
+
+.modal-header {
+    background-color: #f8fafc;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+body.dark-mode .modal-header {
+    background-color: #1e293b;
+    border-bottom-color: #334155;
+}
+
+body.dark-mode .modal-header h3 {
+    color: #f8fafc;
+}
+
+.modal-body {
+    padding: 2rem;
+    background-color: white;
+}
+
+body.dark-mode .modal-body {
+    background-color: #0f172a;
+}
+
+/* Tipos */
+.step-1 p {
+    color: #475569;
+    font-size: 1.05rem;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.type-buttons {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.type-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1rem;
+    background-color: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.type-btn:hover {
+    border-color: #10b981;
+    background-color: #ecfdf5;
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.1);
+}
+
+body.dark-mode .type-btn {
+    background-color: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-mode .type-btn:hover {
+    background-color: #064e3b;
+    border-color: #10b981;
+}
+
+.type-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 4px 3px rgba(0, 0, 0, 0.1));
+}
+
+.type-label {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #334155;
+}
+
+body.dark-mode .type-label {
+    color: #e2e8f0;
+}
+
+/* Formularios Step 2 */
+.form-group {
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.form-group label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 0.5rem;
+}
+
+body.dark-mode .form-group label {
+    color: #cbd5e1;
+}
+
+.form-group input[type="text"],
+.form-group select {
+    width: 100%;
+    padding: 0.85rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1.05rem;
+    color: #0f172a;
+    background-color: #f8fafc;
+    transition: all 0.2s;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.form-group input[type="text"]:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #10b981;
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+body.dark-mode .form-group input[type="text"],
+body.dark-mode .form-group select {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+}
+
+body.dark-mode .form-group input[type="text"]:focus,
+body.dark-mode .form-group select:focus {
+    border-color: #10b981;
+}
+
+.form-row {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.half {
+    flex: 1;
+}
+
+.checkbox-group {
+    justify-content: flex-end;
+}
+
+.checkbox-label {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    margin-bottom: 0 !important;
+    padding: 0.85rem;
+    background-color: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.checkbox-label:hover {
+    background-color: #f1f5f9;
+}
+
+body.dark-mode .checkbox-label {
+    background-color: #1e293b;
+    border-color: #334155;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    accent-color: #10b981;
+}
+
+.color-picker-group {
+    margin-top: 1rem;
+    padding-top: 1.5rem;
+    border-top: 1px dashed #cbd5e1;
+}
+
+body.dark-mode .color-picker-group {
+    border-top-color: #334155;
+}
+
+.colors-container {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.color-swatch {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 4px solid white;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+body.dark-mode .color-swatch {
+    border-color: #0f172a;
+}
+
+.color-swatch:hover {
+    transform: scale(1.15) translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+}
+
+.color-swatch.selected {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 3px #0f172a, 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .color-swatch.selected {
+    box-shadow: 0 0 0 3px #f8fafc, 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+.modal-actions-footer {
+    display: flex;
+    justify-content: space-between;
+    /* Lados opuestos */
+    gap: 1rem;
+    margin-top: 2.5rem;
+}
+
+.btn-primary,
+.btn-secondary {
+    padding: 0.85rem 2rem;
+    border-radius: 9999px;
+    font-weight: 700;
+    font-size: 1.05rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    letter-spacing: 0.05em;
+}
+
+.btn-primary {
+    background-color: #10b981;
+    /* Verde */
+    color: white;
+    box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
+}
+
+.btn-primary:hover {
+    background-color: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px -1px rgba(16, 185, 129, 0.4);
+}
+
+.btn-secondary {
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 2px solid #e2e8f0;
+}
+
+.btn-secondary:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+}
+
+body.dark-mode .btn-secondary {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #cbd5e1;
+}
+
+body.dark-mode .btn-secondary:hover {
+    background-color: #334155;
+    color: #f8fafc;
+}
+
+/* ============================
+   CONFIGURACION MATERIAS Y HOVER
+   ============================ */
+
+.entry-card.clickable {
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.entry-card.clickable:hover {
+    transform: scale(1.05);
+    z-index: 10;
+}
+
+.entry-info-tag {
+    font-size: 0.75rem;
+    margin-top: 0.2rem;
+    font-weight: 700;
+    opacity: 0.9;
+    background-color: rgba(255, 255, 255, 0.3);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90%;
+}
+
+body.dark-mode .entry-info-tag {
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Modal Configuración Specifics */
+.third {
+    flex: 1;
+    min-width: 0;
+    /* Previene flex desborde en fechas largas */
+}
+
+/* Input format para Date */
+.form-group input[type="date"] {
+    width: 100%;
+    padding: 0.85rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    /* un poco menor para que entre bien */
+    color: #0f172a;
+    background-color: #f8fafc;
+    transition: all 0.2s;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.form-group input[type="date"]:focus {
+    outline: none;
+    border-color: #10b981;
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+body.dark-mode .form-group input[type="date"] {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+}
+
+body.dark-mode .form-group input[type="date"]:focus {
+    border-color: #10b981;
+}
+
+.config-textarea {
+    width: 100%;
+    padding: 0.85rem;
+    border-radius: 8px;
+    border: 2px solid #e2e8f0;
+    resize: none;
+    font-family: inherit;
+    font-size: 1.05rem;
+    background-color: #f8fafc;
+    color: #0f172a;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.config-textarea:focus {
+    outline: none;
+    border-color: #10b981;
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+body.dark-mode .config-textarea {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+}
+
+body.dark-mode .config-textarea:focus {
+    border-color: #10b981;
+}
+
+/* Toggles Options (Group) */
+.toggle-group {
+    display: flex;
+    flex-wrap: nowrap;
+    /* forzar a misma linea */
+    gap: 0.25rem;
+    background-color: #f1f5f9;
+    padding: 0.5rem;
+    border-radius: 12px;
+}
+
+body.dark-mode .toggle-group {
+    background-color: #0f172a;
+}
+
+.toggle-option {
+    flex: 1;
+    text-align: center;
+    padding: 0.6rem 0.2rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.toggle-option input[type="radio"] {
+    display: none;
+}
+
+.toggle-option:hover {
+    color: #0f172a;
+}
+
+.toggle-option.active {
+    background-color: white;
+    color: #10b981;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+body.dark-mode .toggle-option {
+    color: #94a3b8;
+}
+
+body.dark-mode .toggle-option:hover {
+    color: #f8fafc;
+}
+
+body.dark-mode .toggle-option.active {
+    background-color: #1e293b;
+    color: #34d399;
+}
+
+/* Botón Eliminar Especial */
+.btn-delete {
+    padding: 0.85rem 2rem;
+    border-radius: 9999px;
+    font-weight: 700;
+    font-size: 1.05rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    background-color: #fff1f2;
+    color: #e11d48;
+}
+
+.btn-delete:hover {
+    background-color: #ffe4e6;
+    color: #be123c;
+}
+
+body.dark-mode .btn-delete:hover {
+    background-color: #881337;
+    color: #fecdd3;
+}
+
+/* Boton Gris Auxiliar */
+.btn-gray {
+    padding: 0.85rem 1.5rem;
+    border-radius: 9999px;
+    font-weight: 700;
+    font-size: 1.05rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    background-color: #94a3b8;
+    /* Slate 400 */
+    color: white;
+}
+
+.btn-gray:hover {
+    background-color: #64748b;
+    /* Slate 500 */
+}
+
+body.dark-mode .btn-gray {
+    background-color: #475569;
+    /* Slate 600 */
+}
+
+body.dark-mode .btn-gray:hover {
+    background-color: #334155;
+    /* Slate 700 */
+}
+
+/* Dark Edit Section Enforcements */
+.dark-edit-section label {
+    color: #cbd5e1 !important;
+    /* Slate 300 para contraste */
+}
+
+body.dark-mode .dark-edit-section {
+    background-color: #0f172a !important;
+    /* Aún más oscuro en dark mode */
+    border-color: #1e293b !important;
+}
+
+/* Configuración Modal - Layout Lado a Lado */
+.config-modal {
+    max-width: 900px !important;
+    width: 90vw !important;
+    transition: all 0.3s ease;
+}
+
+.config-form-layout {
+    display: flex;
+    gap: 1.5rem;
+    align-items: stretch;
+}
+
+.config-main-pane {
+    flex: 1;
+    min-width: 0;
+    /* Prevenir overflow en flex */
+    display: flex;
+    flex-direction: column;
+}
+
+.config-side-pane {
+    width: 320px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Para pantallas más pequeñas apilamos */
+@media (max-width: 768px) {
+    .config-form-layout {
+        flex-direction: column;
+    }
+
+    .config-side-pane {
+        width: 100%;
+    }
+}
+
+/* Botón y Picker de Edición de Color en Título */
+.color-edit-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0.3rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.color-edit-btn:hover {
+    color: #10b981;
+    background-color: #f1f5f9;
+}
+
+body.dark-mode .color-edit-btn:hover {
+    background-color: #334155;
+    color: #34d399;
+}
+
+.inline-color-picker {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 1px solid #e2e8f0;
+    padding: 0.5rem;
+    border-radius: 8px;
+    display: flex;
+    gap: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    z-index: 10;
+    animation: fadeInDown 0.2s ease-out;
+}
+
+body.dark-mode .inline-color-picker {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}

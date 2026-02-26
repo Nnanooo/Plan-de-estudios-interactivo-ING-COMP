@@ -1,0 +1,89 @@
+.subject-cell {
+    /* Se quita el borde ya que tr/td de PlanGrid lo manejan */
+    padding: 0.5rem 0.25rem;
+    text-align: center;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.82rem;
+    /* Más chico para que entre texto sin romper largo (como en foto) */
+    line-height: 1.25;
+    user-select: none;
+    background-color: #ffffff;
+    vertical-align: middle;
+    height: 100%;
+}
+
+.subject-cell:hover {
+    filter: brightness(0.95);
+}
+
+.subject-cell.status-aprobada {
+    background-color: #4caf50 !important;
+    /* Verde medio discreto tipo Material Design */
+    color: #ffffff;
+    /* Texto en blanco para buen contraste */
+    font-weight: bold;
+}
+
+.subject-cell.status-regularizada {
+    background-color: #f6ca45 !important;
+    /* Amarillo tostado / ocre mate (más apagado) */
+    color: #452102;
+    /* Marrón muy oscuro para buen contraste */
+    font-weight: bold;
+}
+
+body.dark-mode .subject-cell {
+    border-color: #4b5563;
+    /* Tailwind gray-600 */
+    background-color: #1f2937;
+    /* Tailwind gray-800 */
+}
+
+body.dark-mode .subject-cell:hover {
+    filter: brightness(1.2);
+}
+
+body.dark-mode .subject-cell.status-aprobada {
+    background-color: #2e7d32;
+    /* Verde Esmeralda Mate */
+    color: #ffffff;
+    /* Blanco puro para máxima de lectura */
+    border-color: #1b5e20;
+    font-weight: bold;
+}
+
+body.dark-mode .subject-cell.status-regularizada {
+    background-color: #bfa045;
+    /* Amarillo Mostaza oscuro */
+    color: #ffffff;
+    /* Blanco puro para máxima lectura */
+    border-color: #8c6e26;
+    font-weight: bold;
+}
+
+.empty-cell {
+    background-color: transparent !important;
+    cursor: default;
+    height: 100%;
+    min-height: 60px;
+    /* Asegurar un mínimo en filas cortas */
+}
+
+.empty-cell:hover {
+    filter: none;
+}
+
+body.dark-mode .empty-cell {
+    border-color: #374151;
+}
+
+.subject-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 60px;
+    padding: 0 0.25rem;
+}

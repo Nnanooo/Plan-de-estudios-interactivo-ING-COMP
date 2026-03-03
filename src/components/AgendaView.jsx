@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { planData, opcionales1, opcionales2, electivas1, electivas2 } from '../utils/planData';
+import { planData, opcionales1, opcionales2, electivas1, electivas2, correlativasOptativas } from '../utils/planData';
 import './AgendaView.css';
 
 const PREDEFINED_COLORS = [
@@ -12,7 +12,7 @@ const PREDEFINED_COLORS = [
     { id: 'cyan', hex: '#06b6d4', label: 'Cian' }
 ];
 
-const AgendaView = () => {
+const AgendaView = ({ onGoBack }) => {
     const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
     const timeBlocks = [
         '08:00 - 10:00',
@@ -69,11 +69,46 @@ const AgendaView = () => {
 
     let materiasBase = planData.flatMap(cuatri => cuatri.materias)
         .filter(m => m !== null && m.nombre !== 'Asignatura Optativa' && m.nombre !== 'Asignatura Electiva')
-        .filter(m => !savedStatuses[m.id]) // Filtrar las que tienen estado
+        .filter(m => !savedStatuses[m.id]) // Filtrar las que ya tienen estado (no se pueden volver a cursar si se aprobaron/regularizaron)
+        .filter(m => {
+            // Validar correlatividades
+            if (!m.correlativas || m.correlativas.length === 0) return true;
+
+            return m.correlativas.every(corr => {
+                const status = savedStatuses[corr.id];
+                // Si la condicion es regularizada, basta con que esté regular o aprobada.
+                if (corr.condicion === 'regularizada') {
+                    return status === 'regularizada' || status === 'aprobada';
+                }
+                // Si requiere aprobada, sólo pasa si está aprobada.
+                if (corr.condicion === 'aprobada') {
+                    return status === 'aprobada';
+                }
+                return false;
+            });
+        })
         .map(m => m.nombre);
 
     const todasLasOptativasElectivas = [...opcionales1, ...opcionales2, ...electivas1, ...electivas2];
-    materiasBase = [...materiasBase, ...todasLasOptativasElectivas];
+
+    // Filtrar optativas y electivas por sus correlativas
+    const optativasElectivasFiltradas = todasLasOptativasElectivas.filter(optNombre => {
+        const correlativas = correlativasOptativas[optNombre];
+        if (!correlativas || correlativas.length === 0) return true; // Si no tiene reglas, se permite
+
+        return correlativas.every(corr => {
+            const status = savedStatuses[corr.id];
+            if (corr.condicion === 'regularizada') {
+                return status === 'regularizada' || status === 'aprobada';
+            }
+            if (corr.condicion === 'aprobada') {
+                return status === 'aprobada';
+            }
+            return false;
+        });
+    });
+
+    materiasBase = [...materiasBase, ...optativasElectivasFiltradas];
 
     const materiasDeduplicadas = Array.from(new Set(materiasBase));
 
@@ -348,15 +383,29 @@ const AgendaView = () => {
 
     return (
         <div className="agenda-container">
-            {/* Header / Botonera */}
-            <div className="agenda-controls">
-                <button className="add-agenda-btn" onClick={handleOpenModal}>
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Agregar...
-                </button>
+            {/* Header Unificado */}
+            <div className="agenda-header-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 1.5rem 0', position: 'relative' }}>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
+                    <button onClick={onGoBack} className="btn-go-back" title="Volver al Plan de Estudios" style={{ position: 'relative', top: 0, transform: 'none' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        Volver
+                    </button>
+                </div>
+
+                <div style={{ flex: 2, textAlign: 'center' }}>
+                    <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: '0 0 0.5rem 0' }}>Mi Agenda Semanal</h2>
+                    <p style={{ color: '#64748b', margin: 0 }}>Organiza tus horarios de cursada y estudio</p>
+                </div>
+
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                    <button className="add-agenda-btn" onClick={handleOpenModal}>
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Agregar...
+                    </button>
+                </div>
             </div>
 
             <div className="agenda-wrapper">
@@ -398,7 +447,7 @@ const AgendaView = () => {
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <span className="empty-placeholder">+</span>
+                                                    <span className="empty-placeholder"></span>
                                                 )}
                                             </div>
                                         </td>
@@ -408,6 +457,59 @@ const AgendaView = () => {
                         ))}
                     </tbody>
                 </table>
+            </div>
+
+            {/* LEYENDA MOBILE (Y general) */}
+            <div className="agenda-mobile-legend">
+                <h3 className="legend-title">Detalle de Materias</h3>
+                <div className="legend-grid">
+                    {entries.length === 0 ? (
+                        <div className="legend-empty">No hay actividades en la agenda.</div>
+                    ) : (
+                        Object.values(entries.reduce((acc, entry) => {
+                            if (!acc[entry.name]) {
+                                acc[entry.name] = { ...entry, allBlocks: [{ day: entry.day, blocks: entry.blocks }] };
+                            } else {
+                                acc[entry.name].allBlocks.push({ day: entry.day, blocks: entry.blocks });
+                            }
+                            return acc;
+                        }, {})).map(entry => {
+                            const baseColor = ['blue', 'green', 'purple', 'orange', 'pink', 'teal'].includes(entry.color) ?
+                                { blue: 'indigo', green: 'emerald', purple: 'violet', orange: 'amber', pink: 'ruby', teal: 'cyan' }[entry.color] : entry.color;
+
+                            const colorClass = 'theme-' + baseColor;
+
+                            return (
+                                <div key={entry.id} className="legend-item" onClick={() => handleOpenConfig(entry)}>
+                                    <div className={`legend-color-box ${colorClass}`}></div>
+                                    <div className="legend-info">
+                                        <div className="legend-name">{entry.name}</div>
+                                        <div className="legend-details">
+                                            {entry.allBlocks.map((b, i) => {
+                                                const start = b.blocks[0] ? b.blocks[0].split(' - ')[0] : '';
+                                                const end = b.blocks[b.blocks.length - 1] ? b.blocks[b.blocks.length - 1].split(' - ')[1] : '';
+                                                return (
+                                                    <span key={i} className="legend-time">
+                                                        {b.day}, {start} - {end}{i < entry.allBlocks.length - 1 ? ' | ' : ''}
+                                                    </span>
+                                                );
+                                            })}
+                                            {entry.displayPreference && entry.displayPreference !== 'none' && (
+                                                <span className="legend-annotation">
+                                                    {' • '}
+                                                    {entry.displayPreference === 'aula' && `Aula: ${entry.room || '-'}`}
+                                                    {entry.displayPreference === 'pp' && `PP: ${formatDate(entry.ppDate)}`}
+                                                    {entry.displayPreference === 'sp' && `SP: ${formatDate(entry.spDate)}`}
+                                                    {entry.displayPreference === 'tp' && `TP: ${formatDate(entry.tpDate)}`}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
             </div>
 
             {/* MODAL MULTISTEP */}
@@ -763,7 +865,7 @@ const AgendaView = () => {
                                         <div className="modal-actions-footer config-actions" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
                                             <button type="button" className="btn-delete" onClick={() => {
                                                 if (window.confirm('¿Eliminar esta materia de la agenda?')) {
-                                                    setEntries(prev => prev.filter(e => e.id !== selectedEntryData.id));
+                                                    setEntries(prev => prev.filter(e => e.name !== selectedEntryData.name));
                                                     setIsConfigModalOpen(false);
                                                 }
                                             }}>Borrar</button>

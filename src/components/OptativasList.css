@@ -2,7 +2,8 @@
     padding: 1.5rem;
     border-radius: 12px;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
+    /* Antes hidden, cortaba tooltips */
     border: 1px solid;
 }
 
@@ -49,44 +50,11 @@
     gap: 1rem;
     padding: 0;
     cursor: default;
-    pointer-events: none;
+    /* pointer-events: none; REMOVIDO para permitir hover sobre el icono */
 }
 
 .checkbox-placeholder {
-    width: 16px;
-    height: 16px;
-    border: 1.5px solid #64748b;
-    /* Slate 500 (más notorio) */
-    background-color: #ffffff;
-    flex-shrink: 0;
-    border-radius: 4px;
-    margin-top: 2px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: all 0.2s ease;
-}
-
-.checkbox-placeholder.checked {
-    background-color: #22c55e;
-    border-color: #22c55e;
-    color: #ffffff;
-}
-
-.checkbox-placeholder svg {
-    width: 12px;
-    height: 12px;
-    animation: checkPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
-
-@keyframes checkPop {
-    0% {
-        transform: scale(0);
-    }
-
-    100% {
-        transform: scale(1);
-    }
+    display: none !important;
 }
 
 .optativa-item.selected .materia-name {
@@ -157,4 +125,217 @@ body.dark-mode .optativa-item.selected .materia-name {
 body.dark-mode .optativa-item.selected.regularizada .materia-name {
     color: #fcd34d;
     /* Amarillo brillante en modo oscuro */
+}
+
+/* Modificaciones sin checkbox para el color base */
+.optativa-item.aprobada .materia-name {
+    color: #15803d;
+    font-weight: 700;
+}
+
+body.dark-mode .optativa-item.aprobada .materia-name {
+    color: #4ade80;
+}
+
+.optativa-item.regularizada .materia-name {
+    color: #b45309;
+    font-weight: 700;
+}
+
+body.dark-mode .optativa-item.regularizada .materia-name {
+    color: #fcd34d;
+}
+
+/* Animación y estilo de cursando */
+.optativa-icon-cursando {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: bounceIcon 2s infinite ease-in-out;
+}
+
+.materia-name.is-cursando {
+    border-bottom: 2px solid #0ea5e9;
+    padding-bottom: 2px;
+    animation: borderGlowCyan 2s infinite alternate;
+    display: inline-block;
+}
+
+body.dark-mode .materia-name.is-cursando {
+    border-bottom-color: #38bdf8;
+    animation: borderGlowCyanDark 2s infinite alternate;
+}
+
+@keyframes borderGlowCyan {
+    0% {
+        border-bottom-color: #0ea5e9;
+        box-shadow: 0 4px 6px -4px #0ea5e9;
+    }
+
+    100% {
+        border-bottom-color: transparent;
+        box-shadow: 0 4px 6px -4px transparent;
+    }
+}
+
+@keyframes borderGlowCyanDark {
+    0% {
+        border-bottom-color: #38bdf8;
+        box-shadow: 0 4px 6px -4px #38bdf8;
+    }
+
+    100% {
+        border-bottom-color: transparent;
+        box-shadow: 0 4px 6px -4px transparent;
+    }
+}
+
+@keyframes bounceIcon {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-3px);
+    }
+}
+
+/* ====================
+   CORRELATIVIDADES (TOOLTIPS) EN OPTATIVAS
+   ==================== */
+.optativa-correlativas-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+    cursor: default;
+    pointer-events: auto;
+    /* Fuerza eventos encima del tooltip */
+}
+
+.correlativas-info-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #3b82f6;
+    /* Blue 500 */
+    transition: color 0.2s ease;
+}
+
+body.dark-mode .correlativas-info-icon {
+    color: #60a5fa;
+    /* Blue 400 */
+}
+
+.correlativas-info-icon:hover {
+    color: #2563eb;
+}
+
+body.dark-mode .correlativas-info-icon:hover {
+    color: #3b82f6;
+}
+
+/* Reutilizando y adaptando estilos de tooltip */
+.optativa-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: -10px;
+    /* Anclado ligeramente a la derecha para no irse de pantalla */
+    transform: translateY(10px);
+    /* Ya no centramos con X para evitar salidas del sidebar */
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    padding: 12px;
+    width: max-content;
+    min-width: 220px;
+    max-width: 320px;
+    z-index: 100000;
+    /* Forzamos un Z super alto */
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+    text-align: left;
+}
+
+body.dark-mode .optativa-tooltip {
+    background-color: #1e293b;
+    border-color: #475569;
+    color: #e2e8f0;
+}
+
+/* Triangulito adaptado */
+.optativa-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    right: 14px;
+    /* Movemos el triangulito a la derecha coincidiendo con el icono */
+    border-width: 6px;
+    border-style: solid;
+    border-color: #f8fafc transparent transparent transparent;
+}
+
+body.dark-mode .optativa-tooltip::after {
+    border-color: #1e293b transparent transparent transparent;
+}
+
+.optativa-tooltip::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    right: 13px;
+    /* Movemos el triangulito a la derecha coincidiendo con el icono */
+    border-width: 7px;
+    border-style: solid;
+    border-color: #cbd5e1 transparent transparent transparent;
+    z-index: -1;
+}
+
+body.dark-mode .optativa-tooltip::before {
+    border-color: #475569 transparent transparent transparent;
+}
+
+.optativa-correlativas-wrapper:hover .optativa-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+    .optativa-tooltip {
+        left: 50%;
+        transform: translateX(-50%) translateY(10px);
+        max-width: 250px;
+        white-space: normal;
+        z-index: 999999;
+    }
+
+    .optativa-correlativas-wrapper:hover .optativa-tooltip {
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .optativa-tooltip::after {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .optativa-tooltip::before {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .group-title {
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+    }
+
+    .materia-name {
+        font-size: 0.85rem;
+    }
 }

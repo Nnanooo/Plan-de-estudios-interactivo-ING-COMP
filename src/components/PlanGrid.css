@@ -4,11 +4,14 @@
     background: transparent;
     border-radius: 0;
     box-shadow: none;
-    overflow: hidden;
+    overflow: visible;
+    /* Antes hidden, cortaba tooltips largos */
 }
 
 .table-wrapper {
-    overflow-x: auto;
+    overflow: visible;
+    border-radius: 8px;
+    /* Redondear bordes del contenedor en caso de scroll */
 }
 
 .plan-table {
@@ -36,6 +39,38 @@
     font-size: 1.05rem;
     letter-spacing: 0;
     text-align: center;
+}
+
+@media (max-width: 768px) {
+    .table-wrapper {
+        overflow-x: auto;
+        /* IMPORTANTE: Habilitar deslizamiento horizontal interno SOLO en móviles */
+        overflow-y: visible;
+        /* Mantener la caída de tooltips intacta */
+        padding-bottom: 20px;
+        /* Dar margen para el scroll indicator nativo y sombra de tooltips */
+        -webkit-overflow-scrolling: touch;
+        box-shadow: inset -10px 0 10px -10px rgba(0, 0, 0, 0.1);
+        /* Indicador visual sutil de que sigue */
+    }
+
+    body.dark-mode .table-wrapper {
+        box-shadow: inset -10px 0 10px -10px rgba(0, 0, 0, 0.5);
+    }
+
+    .plan-table {
+        min-width: 800px;
+    }
+
+    .cuatrimestre-header,
+    .asignaturas-header {
+        font-size: 0.9rem;
+        padding: 0.5rem 0;
+    }
+
+    .cuatrimestre-cell {
+        font-size: 1rem;
+    }
 }
 
 .cuatrimestre-header {

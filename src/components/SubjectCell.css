@@ -16,6 +16,15 @@
 
 .subject-cell:hover {
     filter: brightness(0.95);
+    z-index: 101;
+}
+
+.subject-cell.not-editable {
+    cursor: default;
+}
+
+.subject-cell.not-editable:hover {
+    filter: none;
 }
 
 .subject-cell.status-aprobada {
@@ -131,6 +140,221 @@ body.dark-mode .cursando-activa::after {
     100% {
         background-position: left 15px top, right 15px bottom, left bottom 15px, right top 15px;
     }
+}
+
+/* ====================
+   CORRELATIVIDADES (TOOLTIPS)
+   ==================== */
+.has-correlativas {
+    position: relative;
+    overflow: visible !important;
+    /* Permitir que el tooltip flote por fuera */
+}
+
+.correlativas-indicator {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #3b82f6;
+    /* Blue 500 */
+    box-shadow: 0 0 4px rgba(59, 130, 246, 0.5);
+    z-index: 3;
+}
+
+body.dark-mode .correlativas-indicator {
+    background-color: #60a5fa;
+    /* Blue 400 */
+    box-shadow: 0 0 5px rgba(96, 165, 250, 0.4);
+}
+
+.correlativas-tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background-color: #f8fafc;
+    /* Slate 50 */
+    border: 1px solid #cbd5e1;
+    /* Slate 300 */
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    padding: 12px;
+    width: max-content;
+    min-width: 220px;
+    max-width: 320px;
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+    text-align: left;
+}
+
+/* Triangulito del Tooltip apuntando hacia la celda */
+.correlativas-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: #f8fafc transparent transparent transparent;
+}
+
+.correlativas-tooltip::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 7px;
+    border-style: solid;
+    border-color: #cbd5e1 transparent transparent transparent;
+    z-index: -1;
+}
+
+.subject-cell:hover .correlativas-tooltip,
+.has-correlativas:hover .correlativas-tooltip,
+.correlativas-tooltip.force-show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.subject-cell .custom-name {
+    font-size: 0.72rem;
+    line-height: 1.1;
+}
+
+@media (max-width: 768px) {
+    .correlativas-tooltip {
+        max-width: 250px;
+        white-space: normal;
+        z-index: 999999;
+        /* Tooltip a la derecha, para evitar overflow-x en el móvil izquierdo */
+        left: auto;
+        right: -20px;
+        transform: translateY(10px);
+    }
+
+    /* Desactiva el sticky hover nativo en móvil para usar el nuevo long-press */
+    .subject-cell:hover .correlativas-tooltip,
+    .has-correlativas:hover .correlativas-tooltip {
+        opacity: 0;
+        visibility: hidden;
+    }
+
+    /* Muestra la correlatividad SÓLO cuando el estado de la celda lo dicta */
+    .correlativas-tooltip.force-show {
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: translateY(0) !important;
+    }
+
+    .correlativas-tooltip::after {
+        left: auto;
+        right: 30px;
+        transform: none;
+    }
+
+    .correlativas-tooltip::before {
+        left: auto;
+        right: 29px;
+        transform: none;
+    }
+}
+
+.tooltip-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #334155;
+    /* Slate 700 */
+    margin-bottom: 8px;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 4px;
+}
+
+.tooltip-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tooltip-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.tooltip-icon {
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+}
+
+.tooltip-item.estado-aprobada {
+    color: #16a34a;
+    /* Green 600 */
+    text-decoration: line-through;
+    opacity: 0.8;
+}
+
+.tooltip-item.estado-regularizada {
+    color: #d97706;
+    /* Amber 600 */
+}
+
+.tooltip-item.estado-falta {
+    color: #dc2626;
+    /* Red 600 */
+}
+
+/* DARK MODE TOOLTIP */
+body.dark-mode .correlativas-tooltip {
+    background-color: #1e293b;
+    /* Slate 800 */
+    border-color: #334155;
+    /* Slate 700 */
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .correlativas-tooltip::after {
+    border-color: #1e293b transparent transparent transparent;
+}
+
+body.dark-mode .correlativas-tooltip::before {
+    border-color: #334155 transparent transparent transparent;
+}
+
+body.dark-mode .tooltip-title {
+    color: #e2e8f0;
+    border-bottom-color: #334155;
+}
+
+body.dark-mode .tooltip-item.estado-aprobada {
+    color: #4ade80;
+    /* Green 400 */
+}
+
+body.dark-mode .tooltip-item.estado-regularizada {
+    color: #fbbf24;
+    /* Amber 400 */
+}
+
+body.dark-mode .tooltip-item.estado-falta {
+    color: #f87171;
+    /* Red 400 */
 }
 
 .agenda-subject-icon {

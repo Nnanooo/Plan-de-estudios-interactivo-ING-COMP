@@ -144,8 +144,8 @@ body.dark-mode .cell-content {
     /* Verde esmeralda premium */
     color: white;
     border: none;
-    padding: 0.75rem 1.5rem;
-    font-size: 1.05rem;
+    padding: 0.65rem 1.25rem;
+    font-size: 0.95rem;
     font-weight: 700;
     border-radius: 9999px;
     /* Botón píldora moderno */
@@ -309,9 +309,11 @@ body.dark-mode .theme-cyan {
 .agenda-modal {
     max-width: 550px !important;
     width: 90% !important;
+    max-height: 90vh;
+    overflow-y: auto;
+    overflow-x: hidden;
     border-radius: 16px !important;
     padding: 0 !important;
-    overflow: hidden;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
 }
 
@@ -936,5 +938,201 @@ body.dark-mode .inline-color-picker {
     to {
         opacity: 1;
         transform: translate(-50%, 0);
+    }
+}
+
+/* ============================
+   LEYENDA MOBILE (Y RESPONSIVE)
+   ============================ */
+
+.agenda-mobile-legend {
+    display: none;
+    /* Oculto en escritorio por defecto, visible solo en mobile */
+    margin-top: 2rem;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e2e8f0;
+}
+
+body.dark-mode .agenda-mobile-legend {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.legend-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #0f172a;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.75rem;
+}
+
+body.dark-mode .legend-title {
+    color: #f8fafc;
+    border-color: #334155;
+}
+
+.legend-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+body.dark-mode .legend-item {
+    background-color: #0f172a;
+    border-color: #334155;
+}
+
+.legend-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.legend-color-box {
+    width: 20px;
+    height: 36px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    /* La clase .theme-* inyectada le dará el color */
+}
+
+.legend-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.legend-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #1e293b;
+}
+
+body.dark-mode .legend-name {
+    color: #f1f5f9;
+}
+
+.legend-details {
+    font-size: 0.85rem;
+    color: #64748b;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+body.dark-mode .legend-details {
+    color: #94a3b8;
+}
+
+.legend-empty {
+    color: #64748b;
+    font-style: italic;
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 1rem 0;
+}
+
+/* MEDIAS QUERIES / RESPONSIVE FINAL */
+@media (max-width: 768px) {
+    .agenda-mobile-legend {
+        display: block;
+        /* Solo se muestra la leyenda en celulares */
+    }
+
+    /* Ocultar los textos de las materias dentro de los bloques de horario */
+    .agenda-cell .entry-name,
+    .agenda-cell .entry-type,
+    .agenda-cell .entry-info-tag {
+        display: none !important;
+    }
+
+    /* Achicar anchos y textos para que entre la grilla */
+    .time-header {
+        width: 60px;
+        font-size: 0.8rem;
+        padding: 0.5rem 0;
+    }
+
+    .day-header {
+        font-size: 0.85rem;
+        padding: 0.5rem 0;
+    }
+
+    .time-cell {
+        font-size: 0.75rem;
+        padding: 0 0.25rem !important;
+    }
+
+    .empty-placeholder {
+        font-size: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* Mobile adjustments para boton y header */
+    .agenda-header-title {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 1.5rem !important;
+    }
+
+    .agenda-header-title>div {
+        width: 100%;
+        justify-content: center !important;
+        text-align: center !important;
+    }
+
+    .btn-go-back {
+        position: static !important;
+        margin-bottom: 1rem;
+        padding: 0.35rem 0.75rem !important;
+        font-size: 0.8rem !important;
+    }
+
+    .btn-go-back svg {
+        width: 16px !important;
+        height: 16px !important;
+    }
+
+    .agenda-header-title h2 {
+        font-size: 1.25rem !important;
+        margin-top: 0 !important;
+        text-align: center;
+    }
+
+    .agenda-header-title p {
+        font-size: 0.85rem !important;
+        margin-top: 0.2rem !important;
+        text-align: center;
+    }
+
+    .add-agenda-btn {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.85rem !important;
+        margin: 0 auto;
+        display: flex;
+    }
+
+    .agenda-controls {
+        justify-content: center;
     }
 }

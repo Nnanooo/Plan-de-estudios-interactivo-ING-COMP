@@ -1,8 +1,24 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import './SubjectCell.css';
 
-// status ahora puede ser null, 'aprobada', 'regularizada'
-const SubjectCell = ({ materia, status, customName, onToggle, isCursando }) => {
+const SubjectCell = ({ materia, status, allStatuses, allSubjectsMap, customName, onToggle, isCursando, isEditMode, showCorrelativasActivo }) => {
+    const [isPressed, setIsPressed] = useState(false);
+    const pressTimer = useRef(null);
+
+    const handleTouchStart = () => {
+        if (!isEditMode && materia && materia.correlativas && materia.correlativas.length > 0) {
+            // Iniciar temporizador de long-press (300ms)
+            pressTimer.current = setTimeout(() => {
+                setIsPressed(true);
+            }, 300);
+        }
+    };
+
+    const handleTouchEnd = () => {
+        if (pressTimer.current) clearTimeout(pressTimer.current);
+        setIsPressed(false);
+    };
+
     if (!materia) {
         return <td className="subject-cell empty-cell"></td>;
     }
@@ -19,6 +35,10 @@ const SubjectCell = ({ materia, status, customName, onToggle, isCursando }) => {
         statusClass += ' cursando-activa';
     }
 
+    if (!isEditMode) {
+        statusClass += ' not-editable';
+    }
+
     const getHexColor = (colorId) => {
         const colors = {
             ruby: '#f43f5e', indigo: '#6366f1', emerald: '#10b981',
@@ -29,10 +49,19 @@ const SubjectCell = ({ materia, status, customName, onToggle, isCursando }) => {
         return colors[colorId] || '#38bdf8';
     };
 
+    const hasCorrelativas = materia.correlativas && materia.correlativas.length > 0;
+
     return (
         <td
-            className={`subject-cell ${statusClass}`}
+            className={`subject-cell ${statusClass} ${(showCorrelativasActivo || isPressed) && hasCorrelativas ? 'has-correlativas' : ''}`}
             onClick={() => onToggle(materia.id)}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
+            onContextMenu={(e) => {
+                // Prevenir menú contextual nativo del celular al mantener presionado en modo no-edición
+                if (!isEditMode && hasCorrelativas) e.preventDefault();
+            }}
         >
             <div className={`subject-content ${customName ? 'custom-name' : ''}`}>
                 {customName ? customName : materia.nombre}
@@ -44,6 +73,54 @@ const SubjectCell = ({ materia, status, customName, onToggle, isCursando }) => {
                     </div>
                 )}
             </div>
+
+            {(showCorrelativasActivo || isPressed) && hasCorrelativas && (
+                <>
+                    {showCorrelativasActivo && <div className="correlativas-indicator"></div>}
+                    <div className={`correlativas-tooltip ${isPressed ? 'force-show' : ''}`}>
+                        <div className="tooltip-title">Correlativas Requeridas</div>
+                        <ul className="tooltip-list">
+                            {materia.correlativas.map((req, idx) => {
+                                const reqStatus = allStatuses?.[req.id] || null;
+                                const reqName = allSubjectsMap?.[req.id] || `Material ${req.id}`;
+
+                                let estadoCss = 'estado-falta';
+                                let icon = (
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                );
+
+                                if (reqStatus === 'aprobada') {
+                                    estadoCss = 'estado-aprobada';
+                                    icon = (
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                        </svg>
+                                    );
+                                } else if (reqStatus === 'regularizada') {
+                                    estadoCss = 'estado-regularizada';
+                                    icon = (
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <polyline points="12 6 12 12 16 14"></polyline>
+                                        </svg>
+                                    );
+                                }
+
+                                return (
+                                    <li key={idx} className={`tooltip-item ${estadoCss}`}>
+                                        <span className="tooltip-icon">{icon}</span>
+                                        <span className="tooltip-text">{reqName}</span>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                </>
+            )}
         </td>
     );
 };

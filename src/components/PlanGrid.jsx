@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { planData } from '../utils/planData';
 import SubjectCell from './SubjectCell';
 import './PlanGrid.css';
 
-const PlanGrid = ({ paintMode, opcionales1, opcionales2, electivas1, electivas2 }) => {
+const PlanGrid = ({ paintMode, isEditMode, showCorrelativasActivo, opcionales1, opcionales2, electivas1, electivas2, agendaActiveSubjects = [] }) => {
     // Ahora guardamos un objeto { id_materia: 'estado' } en lugar de un array
     // Donde 'estado' será 'aprobada' o 'regularizada'
     const [subjectStatuses, setSubjectStatuses] = useState(() => {
@@ -40,33 +40,20 @@ const PlanGrid = ({ paintMode, opcionales1, opcionales2, electivas1, electivas2 
     const [activeModal, setActiveModal] = useState(null); // guardará el ID de la materia optativa clickeada
     const [tempOption, setTempOption] = useState(null); // opcion seleccionada en el form del modal
 
-    // Estado local para materias en curso desde la Agenda
-    const [agendaActiveSubjects, setAgendaActiveSubjects] = useState([]);
-
-    useEffect(() => {
-        const fetchAgenda = () => {
-            try {
-                const saved = localStorage.getItem('agendaEntries');
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    // Quedarse con materias únicas y su color asignado
-                    const activeSet = new Map();
-                    parsed.filter(e => e.type === 'Materia').forEach(e => {
-                        if (!activeSet.has(e.name)) {
-                            activeSet.set(e.name, { name: e.name, color: e.color });
-                        }
-                    });
-                    setAgendaActiveSubjects(Array.from(activeSet.values()));
-                } else {
-                    setAgendaActiveSubjects([]);
+    // Lookup table para Nombres de Materias (usado en Tooltips de Correlatividades)
+    const allSubjectsMap = useMemo(() => {
+        const map = {};
+        planData.forEach(row => {
+            row.materias.forEach(mat => {
+                if (mat) {
+                    map[mat.id] = mat.nombre;
                 }
-            } catch (err) { }
-        };
-
-        fetchAgenda();
-        window.addEventListener('agendaUpdated', fetchAgenda);
-        return () => window.removeEventListener('agendaUpdated', fetchAgenda);
+            });
+        });
+        return map;
     }, []);
+
+
 
     useEffect(() => {
         localStorage.setItem('planDinamicoStatuses', JSON.stringify(subjectStatuses));
@@ -79,6 +66,7 @@ const PlanGrid = ({ paintMode, opcionales1, opcionales2, electivas1, electivas2 
     }, [optativasChoices]);
 
     const handleToggle = (materia) => {
+        if (!isEditMode) return;
         const id = materia.id;
 
         // Si es una asignatura optativa o electiva
@@ -195,9 +183,13 @@ const PlanGrid = ({ paintMode, opcionales1, opcionales2, electivas1, electivas2 
                                                 key={materia.id}
                                                 materia={materia}
                                                 status={subjectStatuses[materia.id] || null}
+                                                allStatuses={subjectStatuses}
+                                                allSubjectsMap={allSubjectsMap}
                                                 customName={optativasChoices[materia.id]}
                                                 onToggle={() => handleToggle(materia)}
                                                 isCursando={isCursando}
+                                                isEditMode={isEditMode}
+                                                showCorrelativasActivo={showCorrelativasActivo}
                                             />
                                         ) : (
                                             <td key={`empty-${row.cuatrimestre}-${index}`} className="empty-cell"></td>

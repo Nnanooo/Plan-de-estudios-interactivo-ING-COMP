@@ -58,10 +58,29 @@
 
 .nav-menu {
   display: flex;
-  gap: 1.5rem;
+  justify-content: space-between;
   align-items: center;
   width: 100%;
   max-width: 1400px;
+}
+
+.nav-group {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex: 1;
+}
+
+.nav-group.left {
+  justify-content: flex-start;
+}
+
+.nav-group.center {
+  justify-content: center;
+}
+
+.nav-group.right {
+  justify-content: flex-end;
 }
 
 .theme-toggle-btn {
@@ -75,7 +94,6 @@
   padding: 0.5rem;
   border-radius: 50%;
   transition: all 0.3s ease;
-  margin-right: auto;
 }
 
 .theme-toggle-btn:hover {
@@ -318,6 +336,13 @@ body.dark-mode .theme-toggle-btn:hover {
   flex-direction: column;
   gap: 2rem;
   animation: fadeIn 0.3s ease-out forwards;
+  position: relative;
+  z-index: 10;
+}
+
+.sidebar:hover {
+  z-index: 100;
+  /* Elevar al interactuar para que los tooltips superen la grilla central */
 }
 
 @keyframes fadeIn {
@@ -346,6 +371,13 @@ body.dark-mode .theme-toggle-btn:hover {
   max-width: 1400px;
   /* Permitir un ancho mucho mayor para recuperar la resolución */
   width: 100%;
+  position: relative;
+  z-index: 10;
+}
+
+.main-content:hover {
+  z-index: 100;
+  /* Superar al top-navbar (z-index: 50) para que tooltips superiores no se recorten */
 }
 
 .paint-controls {
@@ -523,10 +555,16 @@ body.dark-mode .total-slash {
   overflow-x: hidden;
   width: 100%;
   position: relative;
+  z-index: 10;
   flex: 1;
   /* Ocupar el resto del alto de la pantalla */
   display: flex;
   flex-direction: column;
+}
+
+.views-slider-container:hover {
+  z-index: 100;
+  /* Superpone a todo el contenedor por encima de .top-navbar (z-index 50) */
 }
 
 .views-slider {
@@ -560,6 +598,44 @@ body.dark-mode .total-slash {
   /* Evitar interactuar cuando no está activa */
 }
 
+.agenda-header-title {
+  position: relative;
+}
+
+.btn-go-back {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-go-back:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+  transform: translateY(-50%) scale(1.05);
+}
+
+body.dark-mode .btn-go-back {
+  color: #cbd5e1;
+  border-color: #334155;
+}
+
+body.dark-mode .btn-go-back:hover {
+  background-color: #334155;
+  color: #f8fafc;
+}
+
 /* ESTADO: DESLIZADO A AGENDA */
 .slide-to-agenda {
   transform: translateX(-50%);
@@ -588,4 +664,51 @@ body.dark-mode .total-slash {
 body.dark-mode .active-tab-btn {
   background-color: #334155;
   color: #f8fafc;
+}
+
+@media (max-width: 768px) {
+  .app-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .app-header p {
+    font-size: 0.9rem;
+  }
+
+  .top-navbar {
+    height: auto;
+    padding: 0.5rem;
+  }
+
+  .nav-menu {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .nav-group {
+    justify-content: center !important;
+    flex-wrap: wrap;
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Modificación de la pantalla general del plan para móviles */
+@media (max-width: 1024px) {
+  .app-layout {
+    flex-direction: column !important;
+  }
+
+  .sidebar {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 2rem !important;
+    position: static !important;
+    /* Despegarlo de la derecha */
+  }
+
+  .main-content {
+    width: 100% !important;
+  }
 }

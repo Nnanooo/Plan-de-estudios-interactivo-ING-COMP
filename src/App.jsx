@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PlanGrid from './components/PlanGrid';
 import OptativasList from './components/OptativasList';
 import AgendaView from './components/AgendaView';
-import { planData, opcionales1, opcionales2, electivas1, electivas2 } from './utils/planData';
+import { planData, opcionales1, opcionales2, electivas1, electivas2, correlativasOptativas } from './utils/planData';
 import './App.css';
 import { Toaster, toast } from 'react-hot-toast';
 import html2canvas from 'html2canvas';
@@ -20,6 +20,11 @@ function App() {
   const [showTotals, setShowTotals] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false); // Enable/Disable marking
+  const [showCorrelativas, setShowCorrelativas] = useState(false);
+  const [showDisponiblesModal, setShowDisponiblesModal] = useState(false);
+  const [agendaActiveSubjects, setAgendaActiveSubjects] = useState([]);
+
   // Guardaremos el objeto completo { "nombre_materia": "estado" }
   const [selectedOptativasMap, setSelectedOptativasMap] = useState({});
 
@@ -121,6 +126,108 @@ function App() {
     };
   }, []);
 
+  // Efecto para buscar la agenda activa
+  useEffect(() => {
+    const fetchAgenda = () => {
+      try {
+        const saved = localStorage.getItem('agendaEntries');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          // Quedarse con materias únicas y su color asignado
+          const activeSet = new Map();
+          parsed.filter(e => e.type === 'Materia').forEach(e => {
+            if (!activeSet.has(e.name)) {
+              activeSet.set(e.name, { name: e.name, color: e.color });
+            }
+          });
+          setAgendaActiveSubjects(Array.from(activeSet.values()));
+        } else {
+          setAgendaActiveSubjects([]);
+        }
+      } catch (err) { }
+    };
+
+    fetchAgenda();
+    window.addEventListener('agendaUpdated', fetchAgenda);
+    return () => window.removeEventListener('agendaUpdated', fetchAgenda);
+  }, []);
+
+  const getMateriasDisponibles = () => {
+    const savedStatusesJSON = localStorage.getItem('planDinamicoStatuses');
+    const savedStatuses = savedStatusesJSON ? JSON.parse(savedStatusesJSON) : {};
+
+    const disponibles = [];
+
+    // 1. Materias del plan base
+    planData.forEach(cuatri => {
+      cuatri.materias.forEach(m => {
+        if (!m || m.nombre === 'Asignatura Optativa' || m.nombre === 'Asignatura Electiva') return;
+        if (savedStatuses[m.id]) return; // Si ya está regularizada o aprobada
+
+        // Validar correlativas
+        let cumple = true;
+        if (m.correlativas && m.correlativas.length > 0) {
+          cumple = m.correlativas.every(corr => {
+            const status = savedStatuses[corr.id];
+            if (corr.condicion === 'regularizada') {
+              return status === 'regularizada' || status === 'aprobada';
+            }
+            if (corr.condicion === 'aprobada') {
+              return status === 'aprobada';
+            }
+            return false;
+          });
+        }
+
+        if (cumple) {
+          disponibles.push({
+            id: m.id,
+            nombre: m.nombre,
+            cuatrimestreText: `Cuatrimestre ${cuatri.cuatrimestre}`
+          });
+        }
+      });
+    });
+
+    // 2. Optativas y Electivas
+    const allOptEles = [
+      ...opcionales1.map(n => ({ nombre: n, tipo: 'Optativa (1er Ciclo)' })),
+      ...opcionales2.map(n => ({ nombre: n, tipo: 'Optativa (2do Ciclo)' })),
+      ...electivas1.map(n => ({ nombre: n, tipo: 'Electiva' })),
+      ...electivas2.map(n => ({ nombre: n, tipo: 'Electiva' }))
+    ];
+
+    allOptEles.forEach(opt => {
+      const optStatus = selectedOptativasMap[opt.nombre];
+      if (optStatus) return; // Si ya se tiene estado registrado 
+
+      const correlativas = correlativasOptativas[opt.nombre];
+      let cumple = true;
+      if (correlativas && correlativas.length > 0) {
+        cumple = correlativas.every(corr => {
+          const status = savedStatuses[corr.id];
+          if (corr.condicion === 'regularizada') {
+            return status === 'regularizada' || status === 'aprobada';
+          }
+          if (corr.condicion === 'aprobada') {
+            return status === 'aprobada';
+          }
+          return false;
+        });
+      }
+
+      if (cumple) {
+        disponibles.push({
+          id: opt.nombre,
+          nombre: opt.nombre,
+          cuatrimestreText: opt.tipo
+        });
+      }
+    });
+
+    return disponibles;
+  };
+
   const handleExportPDF = async () => {
     setIsExporting(true);
     const toastId = toast.loading('Generando PDF del Plan...');
@@ -212,96 +319,188 @@ function App() {
         </div>
       )}
 
+      {/* MODAL MATERIAS DISPONIBLES */}
+      {showDisponiblesModal && (
+        <div className="modal-overlay" onClick={() => setShowDisponiblesModal(false)} style={{ zIndex: 99999 }}>
+          <div className="modal-content export-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header">
+              <h3>Materias Disponibles para Cursar</h3>
+              <button className="modal-close" onClick={() => setShowDisponiblesModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '1rem', textAlign: 'left' }}>
+              <p style={{ color: 'var(--text-color)', marginBottom: '1rem', marginTop: '0' }}>Estas son las asignaturas que podés cursar actualmente basado en tus materias aprobadas y regularizadas:</p>
+
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {getMateriasDisponibles().length > 0 ? (
+                  getMateriasDisponibles().map((mat, i) => (
+                    <li key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 1rem', backgroundColor: 'var(--sidebar-bg)', borderRadius: '8px', border: '1px solid var(--border-color)', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-color)' }}>{mat.nombre}</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', backgroundColor: 'var(--bg-color)', padding: '0.2rem 0.6rem', borderRadius: '4px', border: '1px solid var(--border-color)', whiteSpace: 'nowrap', marginLeft: '1rem' }}>{mat.cuatrimestreText}</span>
+                    </li>
+                  ))
+                ) : (
+                  <li style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    No hay materias disponibles para cursar actualmente.
+                  </li>
+                )}
+              </ul>
+            </div>
+            <div className="modal-footer" style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                className="export-btn"
+                style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1.5rem', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}
+                onClick={() => setShowDisponiblesModal(false)}
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav className="top-navbar">
         <div className="nav-menu">
-          <button
-            className="theme-toggle-btn"
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            title={isDarkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-          >
-            {isDarkMode ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-            ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-            )}
-          </button>
-
-          <div
-            className="dropdown-container"
-            onMouseEnter={() => setShowMateriasMenu(true)}
-            onMouseLeave={() => setShowMateriasMenu(false)}
-          >
-            <button className="nav-link">
-              Materias <span className="arrow-down">▼</span>
+          {/* GRUPO IZQUIERDO: Theme y Exportar */}
+          <div className="nav-group left">
+            <button
+              className="theme-toggle-btn"
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              title={isDarkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+            >
+              {isDarkMode ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+              )}
             </button>
-            {showMateriasMenu && (
-              <div className="dropdown-menu">
-                <button
-                  className={`dropdown-item ${showOptativas ? 'active' : ''}`}
-                  onClick={() => setShowOptativas(!showOptativas)}
-                >
-                  <span className={`toggle-indicator ${showOptativas ? 'dot-active' : ''}`}>{showOptativas ? '●' : '○'}</span>  Optativas
-                </button>
-                <button
-                  className={`dropdown-item ${showElectivas ? 'active' : ''}`}
-                  onClick={() => setShowElectivas(!showElectivas)}
-                >
-                  <span className={`toggle-indicator ${showElectivas ? 'dot-active' : ''}`}>{showElectivas ? '●' : '○'}</span>  Electivas
-                </button>
-                <button
-                  className={`dropdown-item ${showMateriasAprobadas ? 'active' : ''}`}
-                  onClick={() => setShowMateriasAprobadas(!showMateriasAprobadas)}
-                >
-                  <span className={`toggle-indicator ${showMateriasAprobadas ? 'dot-active' : ''}`}>{showMateriasAprobadas ? '●' : '○'}</span> Contador Materias Aprobadas
-                </button>
-                <button className="dropdown-item disabled" title="Próximamente">
-                  <span className="toggle-indicator">○</span>  Correlatividades
-                </button>
-              </div>
-            )}
+
+            <button
+              className="nav-link export-trigger-btn"
+              style={{ padding: '0.4rem 0.8rem', border: 'none', backgroundColor: 'transparent', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
+              onClick={() => setShowExportModal(true)}
+              title="Exportar Plan"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Exportar...
+            </button>
           </div>
 
-          <div
-            className="dropdown-container"
-            onMouseEnter={() => setShowFiltrosMenu(true)}
-            onMouseLeave={() => setShowFiltrosMenu(false)}
-          >
-            <button className="nav-link">
-              Filtros <span className="arrow-down">▼</span>
-            </button>
-            {showFiltrosMenu && (
-              <div className="dropdown-menu">
-                <button
-                  className={`dropdown-item ${showAniosCompletados ? 'active' : ''}`}
-                  onClick={() => setShowAniosCompletados(!showAniosCompletados)}
-                >
-                  <span className={`toggle-indicator ${showAniosCompletados ? 'dot-active' : ''}`}>{showAniosCompletados ? '●' : '○'}</span> Contador Años Completados
-                </button>
-              </div>
-            )}
+          {/* GRUPO CENTRAL: Filtros y Menús */}
+          <div className="nav-group center">
+            <div
+              className="dropdown-container"
+              onMouseEnter={() => setShowMateriasMenu(true)}
+              onMouseLeave={() => setShowMateriasMenu(false)}
+            >
+              <button
+                className="nav-link"
+                onClick={(e) => {
+                  /* Prevenir comportamiento de un solo toque y permitir mostrar/ocultar el menú */
+                  e.stopPropagation();
+                  setShowMateriasMenu(!showMateriasMenu);
+                  if (!showMateriasMenu) setShowFiltrosMenu(false);
+                }}
+              >
+                Materias <span className="arrow-down">▼</span>
+              </button>
+              {showMateriasMenu && (
+                <div className="dropdown-menu">
+                  <button
+                    className={`dropdown-item ${showOptativas ? 'active' : ''}`}
+                    onClick={() => setShowOptativas(!showOptativas)}
+                  >
+                    <span className={`toggle-indicator ${showOptativas ? 'dot-active' : ''}`}>{showOptativas ? '●' : '○'}</span>  Optativas
+                  </button>
+                  <button
+                    className={`dropdown-item ${showElectivas ? 'active' : ''}`}
+                    onClick={() => setShowElectivas(!showElectivas)}
+                  >
+                    <span className={`toggle-indicator ${showElectivas ? 'dot-active' : ''}`}>{showElectivas ? '●' : '○'}</span>  Electivas
+                  </button>
+                  <button
+                    className={`dropdown-item ${showMateriasAprobadas ? 'active' : ''}`}
+                    onClick={() => setShowMateriasAprobadas(!showMateriasAprobadas)}
+                  >
+                    <span className={`toggle-indicator ${showMateriasAprobadas ? 'dot-active' : ''}`}>{showMateriasAprobadas ? '●' : '○'}</span> Contador Materias Aprobadas
+                  </button>
+                  <button
+                    className={`dropdown-item ${showCorrelativas ? 'active' : ''}`}
+                    onClick={() => setShowCorrelativas(!showCorrelativas)}
+                  >
+                    <span className={`toggle-indicator ${showCorrelativas ? 'dot-active' : ''}`}>{showCorrelativas ? '●' : '○'}</span> Correlatividades
+                  </button>
+                  <button
+                    className="dropdown-item"
+                    onClick={() => {
+                      setShowMateriasMenu(false);
+                      setShowDisponiblesModal(true);
+                    }}
+                  >
+                    <span className="toggle-indicator">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                      </svg>
+                    </span> Disponibles para cursar
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div
+              className="dropdown-container"
+              onMouseEnter={() => setShowFiltrosMenu(true)}
+              onMouseLeave={() => setShowFiltrosMenu(false)}
+            >
+              <button
+                className="nav-link"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowFiltrosMenu(!showFiltrosMenu);
+                  if (!showFiltrosMenu) setShowMateriasMenu(false);
+                }}
+              >
+                Filtros <span className="arrow-down">▼</span>
+              </button>
+              {showFiltrosMenu && (
+                <div className="dropdown-menu">
+                  <button
+                    className={`dropdown-item ${showAniosCompletados ? 'active' : ''}`}
+                    onClick={() => setShowAniosCompletados(!showAniosCompletados)}
+                  >
+                    <span className={`toggle-indicator ${showAniosCompletados ? 'dot-active' : ''}`}>{showAniosCompletados ? '●' : '○'}</span> Contador Años Completados
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
-          <button
-            className={`nav-link ${activeTab === 'agenda' ? 'active-tab-btn' : ''}`}
-            onClick={() => setActiveTab(activeTab === 'plan' ? 'agenda' : 'plan')}
-            title="Agenda Semanal"
-          >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}>
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            Agenda
-          </button>
+          {/* GRUPO DERECHO: Vistas y Modos */}
+          <div className="nav-group right">
+            <button
+              className={`nav-link ${isEditMode ? 'active-tab-btn' : ''}`}
+              onClick={() => setIsEditMode(!isEditMode)}
+              title="Activar o desactivar edición de materias"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              Modo Edición
+            </button>
 
-          <button
-            className="nav-link export-trigger-btn"
-            style={{ marginLeft: 'auto', justifySelf: 'flex-end', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', padding: '0.4rem 1rem', cursor: 'pointer' }}
-            onClick={() => setShowExportModal(true)}
-          >
-            Exportar como...
-          </button>
+            <button
+              className={`nav-link ${activeTab === 'agenda' ? 'active-tab-btn' : ''}`}
+              onClick={() => setActiveTab(activeTab === 'plan' ? 'agenda' : 'plan')}
+              title="Agenda Semanal"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}>
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              Agenda
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -313,34 +512,40 @@ function App() {
             <div className="app-content-wrapper">
               <header className="app-header plan-header" style={{ paddingTop: '0.8rem', marginBottom: '0.2rem' }}>
                 <h2 style={{ fontSize: '1.4rem', marginTop: 0, marginBottom: '0.1rem', fontWeight: 'bold', color: 'var(--text-color)' }}>Plan de estudio de Ingeniería en computación</h2>
-                <p style={{ margin: 0, fontSize: '0.95rem' }}>Selecciona materias {paintMode === 'aprobada' ? 'aprobadas' : 'regularizadas'}</p>
+                <p style={{ margin: 0, fontSize: '0.95rem' }}>
+                  {isEditMode
+                    ? `Selecciona materias ${paintMode === 'aprobada' ? 'aprobadas' : 'regularizadas'}`
+                    : 'Modo visualización (Activa el Modo Edición para modificar tus progresos)'}
+                </p>
               </header>
               <div className="app-layout">
                 {(showOptativas || showElectivas) && (
                   <aside className="sidebar left-sidebar">
-                    {showOptativas && <OptativasList title="Optativas de Tecnicaturas" materias={opcionales1} colorClass="style-1" selectedMap={selectedOptativasMap} />}
-                    {showElectivas && <OptativasList title="Electivas" materias={electivas1} colorClass="style-1" selectedMap={selectedOptativasMap} />}
+                    {showOptativas && <OptativasList title="Optativas de Tecnicaturas" materias={opcionales1} colorClass="style-1" selectedMap={selectedOptativasMap} agendaActiveSubjects={agendaActiveSubjects} showCorrelativasActivo={showCorrelativas} />}
+                    {showElectivas && <OptativasList title="Electivas" materias={electivas1} colorClass="style-1" selectedMap={selectedOptativasMap} agendaActiveSubjects={agendaActiveSubjects} showCorrelativasActivo={showCorrelativas} />}
                   </aside>
                 )}
 
                 <main className="main-content">
                   <div className="center-controls">
-                    <div className="paint-controls">
-                      <button
-                        className={`paint-btn btn-aprobada ${paintMode === 'aprobada' ? 'active' : ''}`}
-                        onClick={() => setPaintMode('aprobada')}
-                      >
-                        Materia aprobada
-                      </button>
-                      <button
-                        className={`paint-btn btn-regularizada ${paintMode === 'regularizada' ? 'active' : ''}`}
-                        onClick={() => setPaintMode('regularizada')}
-                      >
-                        Materia regularizada
-                      </button>
-                    </div>
+                    {isEditMode && (
+                      <div className="paint-controls">
+                        <button
+                          className={`paint-btn btn-aprobada ${paintMode === 'aprobada' ? 'active' : ''}`}
+                          onClick={() => setPaintMode('aprobada')}
+                        >
+                          Materia aprobada
+                        </button>
+                        <button
+                          className={`paint-btn btn-regularizada ${paintMode === 'regularizada' ? 'active' : ''}`}
+                          onClick={() => setPaintMode('regularizada')}
+                        >
+                          Materia regularizada
+                        </button>
+                      </div>
+                    )}
 
-                    <div className="counters-container">
+                    <div className="counters-container" style={{ marginLeft: isEditMode ? '0' : 'auto', marginRight: isEditMode ? '0' : 'auto' }}>
                       {showMateriasAprobadas && (
                         <div className="aprobadas-counter">
                           <button
@@ -386,18 +591,21 @@ function App() {
                   <div className="grid-wrapper">
                     <PlanGrid
                       paintMode={paintMode}
+                      isEditMode={isEditMode}
+                      showCorrelativasActivo={showCorrelativas}
                       opcionales1={opcionales1}
                       opcionales2={opcionales2}
                       electivas1={electivas1}
                       electivas2={electivas2}
+                      agendaActiveSubjects={agendaActiveSubjects}
                     />
                   </div>
                 </main>
 
                 {(showOptativas || showElectivas) && (
                   <aside className="sidebar right-sidebar">
-                    {showOptativas && <OptativasList title="Optativas de Ingenierías" materias={opcionales2} colorClass="style-1" selectedMap={selectedOptativasMap} />}
-                    {showElectivas && <OptativasList title="Electivas" materias={electivas2} colorClass="style-1" selectedMap={selectedOptativasMap} />}
+                    {showOptativas && <OptativasList title="Optativas de Ingenierías" materias={opcionales2} colorClass="style-1" selectedMap={selectedOptativasMap} agendaActiveSubjects={agendaActiveSubjects} showCorrelativasActivo={showCorrelativas} />}
+                    {showElectivas && <OptativasList title="Electivas" materias={electivas2} colorClass="style-1" selectedMap={selectedOptativasMap} agendaActiveSubjects={agendaActiveSubjects} showCorrelativasActivo={showCorrelativas} />}
                   </aside>
                 )}
               </div>
@@ -409,12 +617,8 @@ function App() {
 
           {/* VISTA 2: AGENDA SEMANAL */}
           <div className="view-panel agenda-panel">
-            <div className="agenda-header-title" style={{ textAlign: 'center', margin: '2rem 0', color: 'var(--text-color)' }}>
-              <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>Mi Agenda Semanal</h2>
-              <p style={{ color: '#64748b' }}>Organiza tus horarios de cursada y estudio</p>
-            </div>
             <div style={{ padding: '0 2rem' }}>
-              <AgendaView />
+              <AgendaView onGoBack={() => setActiveTab('plan')} />
             </div>
           </div>
 

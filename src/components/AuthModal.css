@@ -1,0 +1,278 @@
+.auth-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.75);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100000;
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    animation: fadeIn 0.2s ease forwards;
+}
+
+.auth-modal-content {
+    background-color: #ffffff;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 420px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    transform: translateY(20px);
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+body.dark-mode .auth-modal-content {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    color: #f8fafc;
+}
+
+.auth-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+body.dark-mode .auth-header {
+    border-bottom-color: #334155;
+}
+
+.auth-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #0f172a;
+}
+
+body.dark-mode .auth-header h3 {
+    color: #f8fafc;
+}
+
+.auth-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #64748b;
+    transition: color 0.2s;
+}
+
+.auth-close:hover {
+    color: #0f172a;
+}
+
+body.dark-mode .auth-close:hover {
+    color: #f8fafc;
+}
+
+.auth-body {
+    padding: 1.5rem;
+}
+
+.auth-tabs {
+    display: flex;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+body.dark-mode .auth-tabs {
+    border-bottom-color: #334155;
+}
+
+.auth-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 0.75rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #64748b;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s;
+}
+
+.auth-tab.active {
+    color: #2563eb;
+}
+
+body.dark-mode .auth-tab.active {
+    color: #38bdf8;
+}
+
+.auth-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: #2563eb;
+}
+
+body.dark-mode .auth-tab.active::after {
+    background-color: #38bdf8;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.input-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+body.dark-mode .input-group label {
+    color: #cbd5e1;
+}
+
+.input-group input {
+    padding: 0.85rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: all 0.2s;
+    background-color: #f8fafc;
+    color: #0f172a;
+}
+
+body.dark-mode .input-group input {
+    background-color: #0f172a;
+    border-color: #475569;
+    color: #f8fafc;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+body.dark-mode .input-group input:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
+}
+
+.auth-submit {
+    margin-top: 0.5rem;
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.auth-submit:hover:not(:disabled) {
+    background-color: #1d4ed8;
+}
+
+.auth-submit:disabled {
+    background-color: #94a3b8;
+    cursor: not-allowed;
+}
+
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* Ajustes Mobile Friendly Absolutos */
+@media (max-width: 480px) {
+    .auth-modal-content {
+        width: 95%;
+        border-radius: 12px;
+    }
+
+    .auth-header {
+        padding: 1.25rem 1rem;
+    }
+
+    .auth-body {
+        padding: 1rem 1rem 1.5rem 1rem;
+    }
+
+    .auth-tab {
+        padding: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .input-group input {
+        padding: 0.75rem;
+        font-size: 16px;
+        /* Evita que el iPhone haga zoom automático */
+    }
+
+    .auth-submit {
+        padding: 0.85rem;
+        font-size: 1.05rem;
+    }
+}
+
+/* Wrapper del Captcha Oficial */
+.recaptcha-wrapper {
+    min-height: auto;
+    margin: 15px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: transparent !important;
+    position: relative;
+    border-radius: 4px;
+    /* Usamos un truco de box-shadow inverso para tapar los bordes indeseados,
+       y mantenemos overflow hidden para esquinas */
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px var(--bg-color-oscuro, #1e293b);
+}
+
+.recaptcha-wrapper>div {
+    background: transparent !important;
+    border: none !important;
+}
+
+.recaptcha-wrapper iframe {
+    border: none !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+}
+
+/* Escalar captcha en celulares muy angostos */
+@media (max-width: 380px) {
+    .recaptcha-wrapper {
+        transform: scale(0.85);
+        transform-origin: center center;
+    }
+}
+
+@media (max-width: 320px) {
+    .recaptcha-wrapper {
+        transform: scale(0.75);
+        transform-origin: center center;
+    }
+}

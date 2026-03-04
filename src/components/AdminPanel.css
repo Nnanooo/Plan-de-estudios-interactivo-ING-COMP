@@ -1,0 +1,481 @@
+/* AdminPanel.css */
+.admin-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.85);
+    /* Fondo oscuro semitransparente */
+    backdrop-filter: blur(8px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    padding: 1rem;
+}
+
+.admin-modal {
+    position: relative;
+    background: var(--bg-color-oscuro, #1e293b);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    /* Borde sutil violeta */
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.2) inset;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 800px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: adminSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes adminSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: linear-gradient(to right, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.9));
+}
+
+.admin-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.crown-icon {
+    font-size: 1.8rem;
+    filter: drop-shadow(0 0 8px rgba(167, 139, 250, 0.6));
+    animation: adminFloat 3s ease-in-out infinite;
+}
+
+@keyframes adminFloat {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-3px);
+    }
+}
+
+.admin-title h2 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #e2e8f0 0%, #a78bfa 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.admin-close-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    color: #94a3b8;
+    font-size: 1.5rem;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.admin-close-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.admin-body {
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem 2rem;
+    overflow: hidden;
+    gap: 1.5rem;
+}
+
+.admin-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.search-bar-container {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+
+.search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    font-size: 1rem;
+}
+
+.admin-search-input {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 0.75rem 1rem 0.75rem 2.5rem;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+}
+
+.admin-search-input:focus {
+    outline: none;
+    border-color: #8b5cf6;
+    background: rgba(15, 23, 42, 0.8);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.admin-stats-inline {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: #e2e8f0;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    pointer-events: none;
+    /* Que no bloquee el click del input si es largo */
+}
+
+.admin-stats-inline span {
+    color: #a78bfa;
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.admin-table-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    /* IMPORTANTE: Para Mobile */
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(15, 23, 42, 0.3);
+}
+
+/* Scrollbar personalizado para la tabla */
+.admin-table-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.admin-table-container::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 8px;
+}
+
+.admin-table-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+}
+
+.admin-table-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.admin-table th {
+    background: rgba(15, 23, 42, 0.8);
+    color: #94a3b8;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 1rem 1.25rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+}
+
+.admin-table td {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: #e2e8f0;
+    font-size: 0.95rem;
+    vertical-align: middle;
+}
+
+.admin-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.admin-table tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-row td {
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.admin-row:hover td {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.font-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: #a78bfa;
+    letter-spacing: 0.5px;
+}
+
+.text-muted {
+    color: #64748b;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+.action-col {
+    text-align: right;
+    width: 120px;
+}
+
+.admin-btn-edit,
+.admin-btn-delete {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0.4rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+    margin-left: 0.5rem;
+    opacity: 0.7;
+}
+
+.admin-btn-edit:hover {
+    opacity: 1;
+    background: rgba(59, 130, 246, 0.1);
+    transform: scale(1.1);
+}
+
+.admin-btn-delete:hover {
+    opacity: 1;
+    background: rgba(239, 68, 68, 0.1);
+    transform: scale(1.1);
+}
+
+.admin-loading {
+    padding: 3rem;
+    text-align: center;
+    color: #94a3b8;
+    font-style: italic;
+    animation: adminPulse 2s infinite;
+}
+
+@keyframes adminPulse {
+
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+.admin-empty {
+    text-align: center;
+    padding: 3rem;
+    color: #64748b;
+    font-style: italic;
+}
+
+
+/* === MODAL DE EDICIÓN FLOTANTE === */
+.admin-edit-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+    animation: adminFadeIn 0.2s ease forwards;
+}
+
+@keyframes adminFadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.admin-edit-modal {
+    background: var(--bg-color, #0f172a);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.admin-edit-modal h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: #e2e8f0;
+    font-size: 1.2rem;
+    text-align: center;
+}
+
+.admin-form-group {
+    margin-bottom: 1.25rem;
+}
+
+.admin-form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #94a3b8;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.admin-form-group input {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 0.75rem;
+    color: #f8fafc;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.admin-form-group input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.warning-group input:focus {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+
+.warning-group small {
+    display: block;
+    margin-top: 0.5rem;
+    color: #f59e0b;
+    font-size: 0.8rem;
+}
+
+.admin-edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.admin-btn-cancel {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.admin-btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #e2e8f0;
+}
+
+.admin-btn-save {
+    background: #8b5cf6;
+    border: none;
+    color: white;
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.admin-btn-save:hover {
+    background: #7c3aed;
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+}
+
+@media (max-width: 600px) {
+    .admin-modal {
+        max-height: 95vh;
+        border-radius: 12px;
+    }
+
+    .admin-header,
+    .admin-body {
+        padding: 1rem;
+    }
+
+    /* Reducir texto y padding para que quepa en mobil sin scroll */
+    .admin-table th,
+    .admin-table td {
+        padding: 0.6rem 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .font-mono {
+        font-size: 0.85rem;
+    }
+
+    .action-col {
+        width: auto;
+        white-space: nowrap;
+    }
+
+    .admin-btn-edit,
+    .admin-btn-delete {
+        font-size: 0.95rem;
+        padding: 0.3rem;
+        margin-left: 0.2rem;
+    }
+}

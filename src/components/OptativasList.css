@@ -5,6 +5,8 @@
     overflow: visible;
     /* Antes hidden, cortaba tooltips */
     border: 1px solid;
+    z-index: 50;
+    /* IMPORTANT: Evita quedar detrás de la grilla central */
 }
 
 /* Diferentes tonos de gris oscuro/claro para distinguirlas sobre el fondo blanco */
@@ -242,10 +244,8 @@ body.dark-mode .correlativas-info-icon:hover {
 .optativa-tooltip {
     position: absolute;
     bottom: calc(100% + 8px);
-    right: -10px;
-    /* Anclado ligeramente a la derecha para no irse de pantalla */
-    transform: translateY(10px);
-    /* Ya no centramos con X para evitar salidas del sidebar */
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
     background-color: #f8fafc;
     border: 1px solid #cbd5e1;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -253,14 +253,14 @@ body.dark-mode .correlativas-info-icon:hover {
     padding: 12px;
     width: max-content;
     min-width: 220px;
-    max-width: 320px;
-    z-index: 100000;
-    /* Forzamos un Z super alto */
+    max-width: 280px;
+    z-index: 999999;
     opacity: 0;
     visibility: hidden;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     pointer-events: none;
     text-align: left;
+    white-space: normal;
 }
 
 body.dark-mode .optativa-tooltip {
@@ -269,13 +269,20 @@ body.dark-mode .optativa-tooltip {
     color: #e2e8f0;
 }
 
+/* Hover Action */
+.optativa-correlativas-wrapper:hover .optativa-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
 /* Triangulito adaptado */
 .optativa-tooltip::after {
     content: '';
     position: absolute;
     top: 100%;
-    right: 14px;
-    /* Movemos el triangulito a la derecha coincidiendo con el icono */
+    left: 50%;
+    transform: translateX(-50%);
     border-width: 6px;
     border-style: solid;
     border-color: #f8fafc transparent transparent transparent;
@@ -289,8 +296,8 @@ body.dark-mode .optativa-tooltip::after {
     content: '';
     position: absolute;
     top: 100%;
-    right: 13px;
-    /* Movemos el triangulito a la derecha coincidiendo con el icono */
+    left: 50%;
+    transform: translateX(-50%);
     border-width: 7px;
     border-style: solid;
     border-color: #cbd5e1 transparent transparent transparent;
@@ -301,6 +308,29 @@ body.dark-mode .optativa-tooltip::before {
     border-color: #475569 transparent transparent transparent;
 }
 
+/* Ajustes específicos para Tooltips en la Sidebar Derecha (evita overflow de monitor) */
+.right-sidebar .optativa-tooltip {
+    left: auto;
+    right: 0;
+    transform: translateY(10px);
+}
+
+.right-sidebar .optativa-correlativas-wrapper:hover .optativa-tooltip {
+    transform: translateY(0);
+}
+
+.right-sidebar .optativa-tooltip::after {
+    left: auto;
+    right: 14px;
+    transform: none;
+}
+
+.right-sidebar .optativa-tooltip::before {
+    left: auto;
+    right: 13px;
+    transform: none;
+}
+
 .optativa-correlativas-wrapper:hover .optativa-tooltip {
     opacity: 1;
     visibility: visible;
@@ -308,28 +338,6 @@ body.dark-mode .optativa-tooltip::before {
 }
 
 @media (max-width: 768px) {
-    .optativa-tooltip {
-        left: 50%;
-        transform: translateX(-50%) translateY(10px);
-        max-width: 250px;
-        white-space: normal;
-        z-index: 999999;
-    }
-
-    .optativa-correlativas-wrapper:hover .optativa-tooltip {
-        transform: translateX(-50%) translateY(0);
-    }
-
-    .optativa-tooltip::after {
-        left: 50%;
-        transform: translateX(-50%);
-    }
-
-    .optativa-tooltip::before {
-        left: 50%;
-        transform: translateX(-50%);
-    }
-
     .group-title {
         font-size: 0.95rem;
         margin-bottom: 1rem;

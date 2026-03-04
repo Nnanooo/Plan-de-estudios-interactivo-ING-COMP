@@ -53,6 +53,7 @@
   /* Juntar al contenido de abajo */
   position: relative;
   z-index: 50;
+  /* Debe ser menor al de Sidebar que es 100 */
   padding: 0 1rem;
 }
 
@@ -329,21 +330,33 @@ body.dark-mode .theme-toggle-btn:hover {
 }
 
 .sidebar {
-  flex-shrink: 0;
   width: 320px;
-  /* Ancho fijo para las barras laterales */
+  min-width: 320px;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
   animation: fadeIn 0.3s ease-out forwards;
   position: relative;
-  z-index: 10;
+  z-index: 100;
 }
 
-.sidebar:hover {
-  z-index: 100;
-  /* Elevar al interactuar para que los tooltips superen la grilla central */
+/* La sidebar derecha no está fija, sólo toma su espacio de flex */
+.right-sidebar {
+  position: relative;
 }
+
+/* Ajustes de responsive si hay 3 columnas */
+@media (max-width: 1400px) {
+  .app-layout {
+    gap: 1rem;
+  }
+
+  .sidebar {
+    width: 280px;
+    min-width: 280px;
+  }
+}
+
 
 @keyframes fadeIn {
   from {
@@ -365,20 +378,16 @@ body.dark-mode .theme-toggle-btn:hover {
 
 .main-content {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   max-width: 1400px;
-  /* Permitir un ancho mucho mayor para recuperar la resolución */
   width: 100%;
   position: relative;
-  z-index: 10;
+  z-index: 1;
 }
 
-.main-content:hover {
-  z-index: 100;
-  /* Superar al top-navbar (z-index: 50) para que tooltips superiores no se recorten */
-}
 
 .paint-controls {
   display: flex;
@@ -552,20 +561,14 @@ body.dark-mode .total-slash {
 /* === ENRUTAMIENTO SPA (DESLIZAMIENTO DE PESTAÑAS) === */
 
 .views-slider-container {
-  overflow-x: hidden;
   width: 100%;
   position: relative;
-  z-index: 10;
   flex: 1;
   /* Ocupar el resto del alto de la pantalla */
   display: flex;
   flex-direction: column;
 }
 
-.views-slider-container:hover {
-  z-index: 100;
-  /* Superpone a todo el contenedor por encima de .top-navbar (z-index 50) */
-}
 
 .views-slider {
   display: flex;
@@ -691,6 +694,62 @@ body.dark-mode .active-tab-btn {
     width: 100%;
     margin-bottom: 0.5rem;
   }
+
+  /* Ocultar texto de botones del NavBar en móvil para dejar solo iconos */
+  .nav-group.right .nav-text,
+  .nav-group.left .nav-text {
+    display: none;
+  }
+
+  .nav-group.right .nav-link {
+    padding: 0.5rem;
+    justify-content: center;
+  }
+
+  .nav-group.right .nav-link svg {
+    margin-right: 0 !important;
+  }
+
+  /* El modal de confirmacion en móviles ocupa más espacio */
+  .logout-confirm-modal {
+    padding: 1rem !important;
+  }
+}
+
+/* Auth Buttons extra logic in NavBar */
+.auth-nav-btn {
+  background-color: transparent;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}
+
+.auth-nav-btn.trigger-login {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+body.dark-mode .auth-nav-btn.trigger-login {
+  color: #38bdf8;
+}
+
+.auth-nav-btn.auth-nav-logout {
+  color: #ef4444 !important;
+  font-weight: 600;
+}
+
+.auth-nav-btn.auth-nav-logout svg {
+  color: #ef4444 !important;
+}
+
+.auth-nav-btn:hover {
+  background-color: rgba(37, 99, 235, 0.1);
+}
+
+.auth-nav-btn.auth-nav-logout:hover {
+  background-color: rgba(239, 68, 68, 0.1) !important;
 }
 
 /* Modificación de la pantalla general del plan para móviles */

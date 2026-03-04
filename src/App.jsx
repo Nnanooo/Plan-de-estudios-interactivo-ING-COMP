@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import PlanGrid from './components/PlanGrid';
 import OptativasList from './components/OptativasList';
 import AgendaView from './components/AgendaView';
+import AuthModal from './components/AuthModal';
+import AdminPanel from './components/AdminPanel';
+import { supabase } from './utils/supabaseClient';
 import { planData, opcionales1, opcionales2, electivas1, electivas2, correlativasOptativas } from './utils/planData';
 import './App.css';
 import { Toaster, toast } from 'react-hot-toast';
@@ -35,6 +38,114 @@ function App() {
   const [showElectivas, setShowElectivas] = useState(false);
   const [showMateriasMenu, setShowMateriasMenu] = useState(false);
   const [showFiltrosMenu, setShowFiltrosMenu] = useState(false);
+
+  // === SISTEMA DE AUTENTICACION Y NUBE ===
+  const [session, setSession] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0); // Llave para forzar remontado de componentes y lectura de LocalStorage
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [userDni, setUserDni] = useState('');
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) loadSupabaseData(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        loadSupabaseData(session);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const loadSupabaseData = async (activeSession) => {
+    try {
+      // Extraemos nombre del perfil
+      const { data: profileData } = await supabase
+        .from('perfiles')
+        .select('nombre, dni')
+        .eq('id', activeSession.user.id)
+        .single();
+
+      if (profileData) {
+        if (profileData.nombre) setUserName(profileData.nombre);
+        if (profileData.dni) setUserDni(profileData.dni);
+      }
+
+      const { data, error } = await supabase
+        .from('progreso_plan')
+        .select('*')
+        .eq('user_id', activeSession.user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error("Error cargando de Supabase:", error);
+        return;
+      }
+
+      if (data) {
+        // Sobreescribir LocalStorage con los datos de la nube
+        localStorage.setItem('planDinamicoStatuses', JSON.stringify(data.materias_status || {}));
+        localStorage.setItem('planDinamicoOptativas', JSON.stringify(data.optativas_status || {}));
+        localStorage.setItem('agendaEntries', JSON.stringify(data.agenda_entries || []));
+
+        // Disparar renderizado profundo
+        setRefreshKey(prev => prev + 1);
+
+        // Actualizar estados internos de App.jsx
+        window.dispatchEvent(new Event('planProgressUpdated'));
+        window.dispatchEvent(new Event('planOptativasUpdated'));
+        window.dispatchEvent(new Event('agendaUpdated'));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const syncToSupabase = async () => {
+    // Si no hay sesión, abortar. Todo queda local
+    if (!session) return;
+
+    try {
+      const materias_status = JSON.parse(localStorage.getItem('planDinamicoStatuses') || '{}');
+      const optativas_status = JSON.parse(localStorage.getItem('planDinamicoOptativas') || '{}');
+      const agenda_entries = JSON.parse(localStorage.getItem('agendaEntries') || '[]');
+
+      const { error } = await supabase
+        .from('progreso_plan')
+        .update({
+          materias_status,
+          optativas_status,
+          agenda_entries
+        })
+        .eq('user_id', session.user.id);
+
+      if (error) console.error("Error sincronizando a Supabase:", error);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    // Escuchamos a los eventos de App que detonan guardados en Local Storage y los interceptamos
+    window.addEventListener('planProgressUpdated', syncToSupabase);
+    window.addEventListener('planOptativasUpdated', syncToSupabase);
+    window.addEventListener('agendaUpdated', syncToSupabase);
+
+    return () => {
+      window.removeEventListener('planProgressUpdated', syncToSupabase);
+      window.removeEventListener('planOptativasUpdated', syncToSupabase);
+      window.removeEventListener('agendaUpdated', syncToSupabase);
+    };
+  }, [session]); // Recargar listeners cuando cambie la sesión
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const savedMsg = localStorage.getItem('theme-mode');
@@ -288,6 +399,54 @@ function App() {
 
       <Toaster position="bottom-center" />
 
+      {/* MODAL DE PANEL DE ADMIN */}
+      {showAdminPanel && (
+        <AdminPanel onClose={() => setShowAdminPanel(false)} />
+      )}
+
+      {/* MODALES DE AUTENTICACION */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onLoginSuccess={(newSession) => {
+            setShowAuthModal(false);
+            // El useEffect de onAuthStateChange ya atrapará esto y llamará a loadSupabaseData
+          }}
+        />
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN LOGOUT */}
+      {showLogoutConfirm && (
+        <div className="modal-overlay" onClick={() => setShowLogoutConfirm(false)} style={{ zIndex: 99999 }}>
+          <div className="modal-content export-modal logout-confirm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '350px', width: '90%', padding: '1.5rem', textAlign: 'center', borderRadius: '12px' }}>
+            <h3 style={{ margin: '0 0 1rem 0', color: 'var(--text-color)', fontSize: '1.25rem' }}>Cerrar Sesión</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '1rem', lineHeight: '1.4' }}>
+              <strong>{userName ? userName : "Usuario"}</strong>, ¿estás seguro que deseas salir de tu cuenta?
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button
+                style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'transparent', color: 'var(--text-color)', cursor: 'pointer', fontWeight: 600, flex: 1 }}
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                No
+              </button>
+              <button
+                style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', border: 'none', backgroundColor: '#ef4444', color: 'white', cursor: 'pointer', fontWeight: 600, flex: 1 }}
+                onClick={async () => {
+                  setShowLogoutConfirm(false);
+                  await supabase.auth.signOut();
+                  setUserName('');
+                  toast.success('Sesión cerrada. Mostrando progreso local.');
+                  setRefreshKey(prev => prev + 1);
+                }}
+              >
+                Sí, salir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL DE EXPORTACIÓN */}
       {showExportModal && (
         <div className="modal-overlay" onClick={() => !isExporting && setShowExportModal(false)}>
@@ -484,7 +643,7 @@ function App() {
               title="Activar o desactivar edición de materias"
             >
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-              Modo Edición
+              <span className="nav-text">Modo Edición</span>
             </button>
 
             <button
@@ -498,8 +657,54 @@ function App() {
                 <line x1="8" y1="2" x2="8" y2="6"></line>
                 <line x1="3" y1="10" x2="21" y2="10"></line>
               </svg>
-              Agenda
+              <span className="nav-text">Agenda</span>
             </button>
+
+            {/* BOTÓN DE SESIÓN E ICONO ADMIN */}
+            {!session ? (
+              <button
+                className="nav-link auth-nav-btn trigger-login"
+                onClick={() => setShowAuthModal(true)}
+                title="Iniciar Sesión"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}>
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span className="nav-text">Iniciar Sesión</span>
+              </button>
+            ) : (
+              <>
+                {userDni === '45736927' && (
+                  <button
+                    className="nav-link auth-nav-btn trigger-admin"
+                    onClick={() => setShowAdminPanel(true)}
+                    title="Panel de Administración"
+                    style={{ color: '#a78bfa', borderColor: 'transparent', padding: '0 0.5rem', marginLeft: '0.2rem' }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 4px rgba(167,139,250,0.5))' }}>
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                        <path d="M5 16L3 5L8.5 10L12 2L15.5 10L21 5L19 16H5M5 19H19V21H5V19Z" />
+                      </svg>
+                    </span>
+                  </button>
+                )}
+                <button
+                  className="nav-link auth-nav-btn auth-nav-logout"
+                  onClick={() => setShowLogoutConfirm(true)}
+                  title="Cerrar Sesión"
+                  style={{ color: '#ef4444' }}
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}>
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                  </svg>
+                  <span className="nav-text" style={{ color: '#ef4444' }}>Cerrar Sesión</span>
+                </button>
+              </>
+            )}
+
           </div>
         </div>
       </nav>
@@ -521,8 +726,8 @@ function App() {
               <div className="app-layout">
                 {(showOptativas || showElectivas) && (
                   <aside className="sidebar left-sidebar">
-                    {showOptativas && <OptativasList title="Optativas de Tecnicaturas" materias={opcionales1} colorClass="style-1" selectedMap={selectedOptativasMap} agendaActiveSubjects={agendaActiveSubjects} showCorrelativasActivo={showCorrelativas} />}
-                    {showElectivas && <OptativasList title="Electivas" materias={electivas1} colorClass="style-1" selectedMap={selectedOptativasMap} agendaActiveSubjects={agendaActiveSubjects} showCorrelativasActivo={showCorrelativas} />}
+                    {showOptativas && <OptativasList key={`opt1-${refreshKey}`} title="Optativas de Tecnicaturas" materias={opcionales1} colorClass="style-1" selectedMap={selectedOptativasMap} agendaActiveSubjects={agendaActiveSubjects} showCorrelativasActivo={showCorrelativas} />}
+                    {showElectivas && <OptativasList key={`opt2-${refreshKey}`} title="Electivas" materias={electivas1} colorClass="style-1" selectedMap={selectedOptativasMap} agendaActiveSubjects={agendaActiveSubjects} showCorrelativasActivo={showCorrelativas} />}
                   </aside>
                 )}
 
@@ -590,6 +795,7 @@ function App() {
                   </div>
                   <div className="grid-wrapper">
                     <PlanGrid
+                      key={`plan-${refreshKey}`}
                       paintMode={paintMode}
                       isEditMode={isEditMode}
                       showCorrelativasActivo={showCorrelativas}
@@ -604,8 +810,8 @@ function App() {
 
                 {(showOptativas || showElectivas) && (
                   <aside className="sidebar right-sidebar">
-                    {showOptativas && <OptativasList title="Optativas de Ingenierías" materias={opcionales2} colorClass="style-1" selectedMap={selectedOptativasMap} agendaActiveSubjects={agendaActiveSubjects} showCorrelativasActivo={showCorrelativas} />}
-                    {showElectivas && <OptativasList title="Electivas" materias={electivas2} colorClass="style-1" selectedMap={selectedOptativasMap} agendaActiveSubjects={agendaActiveSubjects} showCorrelativasActivo={showCorrelativas} />}
+                    {showOptativas && <OptativasList key={`opt3-${refreshKey}`} title="Optativas de Ingenierías" materias={opcionales2} colorClass="style-2" selectedMap={selectedOptativasMap} agendaActiveSubjects={agendaActiveSubjects} showCorrelativasActivo={showCorrelativas} />}
+                    {showElectivas && <OptativasList key={`opt4-${refreshKey}`} title="Electivas" materias={electivas2} colorClass="style-2" selectedMap={selectedOptativasMap} agendaActiveSubjects={agendaActiveSubjects} showCorrelativasActivo={showCorrelativas} />}
                   </aside>
                 )}
               </div>
@@ -617,12 +823,10 @@ function App() {
 
           {/* VISTA 2: AGENDA SEMANAL */}
           <div className="view-panel agenda-panel">
-            <div style={{ padding: '0 2rem' }}>
-              <AgendaView onGoBack={() => setActiveTab('plan')} />
-            </div>
+            <AgendaView key={`agenda-${refreshKey}`} onGoBack={() => setActiveTab('plan')} />
           </div>
-
         </div>
+
       </div>
     </div>
   );

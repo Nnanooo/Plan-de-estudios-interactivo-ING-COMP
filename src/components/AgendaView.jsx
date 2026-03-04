@@ -289,6 +289,27 @@ const AgendaView = ({ onGoBack }) => {
     const handleSaveConfig = (e) => {
         e.preventDefault();
 
+        // Validación de largo del aula
+        if (selectedEntryData.room && selectedEntryData.room.length > 3) {
+            toast.error("El número de Aula no puede exceder los 3 caracteres.");
+            return;
+        }
+
+        // Validación global de fechas de parciales
+        const isValidDate = (dateStr) => {
+            if (!dateStr) return true;
+            const dateObj = new Date(dateStr);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Normalizar al inicio del día actual
+            // Debe ser desde hoy hacia adelante, y límite máximo año 2030 (inclusive)
+            return dateObj >= today && dateObj.getFullYear() <= 2030;
+        };
+
+        if (!isValidDate(selectedEntryData.ppDate) || !isValidDate(selectedEntryData.spDate) || !isValidDate(selectedEntryData.tpDate)) {
+            toast.error("Fecha inválida: Debe ser posterior a hoy y sin superar el año 2030.");
+            return;
+        }
+
         // Arrays para guardar datos procesados
         let blocksToUpdate1 = selectedEntryData.blocks;
         let blocksToUpdate2 = siblingEntryData ? siblingEntryData.blocks : [];

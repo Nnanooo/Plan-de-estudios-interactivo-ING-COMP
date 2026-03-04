@@ -183,8 +183,8 @@ const AdminPanel = ({ onClose }) => {
 
             {/* MODAL DE EDICIÓN FLOTANTE (SEPARADO DEL FLOTANTE PRINCIPAL) */}
             {editingUser && (
-                <div className="admin-edit-overlay">
-                    <div className="admin-edit-modal">
+                <div className="admin-edit-overlay" onClick={() => setEditingUser(null)}>
+                    <div className="admin-edit-modal" onClick={e => e.stopPropagation()}>
                         <h3>Editar Usuario</h3>
                         <form onSubmit={handleSaveEdit}>
                             <div className="admin-form-group">

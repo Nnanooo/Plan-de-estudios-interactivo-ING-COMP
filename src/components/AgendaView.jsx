@@ -8,8 +8,15 @@ const PREDEFINED_COLORS = [
     { id: 'indigo', hex: '#6366f1', label: 'Índigo' },
     { id: 'emerald', hex: '#10b981', label: 'Esmeralda' },
     { id: 'amber', hex: '#f59e0b', label: 'Ámbar' },
-    { id: 'violet', hex: '#8b5cf6', label: 'Violeta' },
     { id: 'cyan', hex: '#06b6d4', label: 'Cian' }
+];
+
+const EXTRA_COLORS = [
+    { id: 'violet', hex: '#8b5cf6', label: 'Violeta' },
+    { id: 'fuchsia', hex: '#d946ef', label: 'Fucsia' },
+    { id: 'sky', hex: '#0ea5e9', label: 'Cielo' },
+    { id: 'lime', hex: '#84cc16', label: 'Lima' },
+    { id: 'orange', hex: '#f97316', label: 'Naranja' }
 ];
 
 const AgendaView = ({ onGoBack }) => {
@@ -34,6 +41,7 @@ const AgendaView = ({ onGoBack }) => {
     // Estados del Modal
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalStep, setModalStep] = useState(1); // 1 = Elegir Tipo, 2 = Completar Formulario
+    const [isColorPopupOpen, setIsColorPopupOpen] = useState(false); // Para colores extras en creacion
 
     // Estados de Formulario
     const [formData, setFormData] = useState({
@@ -134,6 +142,7 @@ const AgendaView = ({ onGoBack }) => {
     });
 
     const handleOpenModal = () => {
+        setIsColorPopupOpen(false); // Reseteo de popup
         setModalStep(1);
         setFormData({
             type: '',
@@ -290,6 +299,7 @@ const AgendaView = ({ onGoBack }) => {
     const handleOpenConfig = (entry) => {
         setIsEditingTime(false); // Reiniciar estado
         setIsEditingColor(false);
+        setIsColorPopupOpen(false); // Reiniciar popup de colores
         setDayEditingMode(1); // Reinicia selector a dia 1
 
         const configBase = {
@@ -826,19 +836,49 @@ const AgendaView = ({ onGoBack }) => {
 
                                         <div className="form-group color-picker-group" style={{ marginTop: '1rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
                                             <label>Color en la Agenda</label>
-                                            <div className="colors-container">
+                                            <div className="colors-container colors-wrapper">
                                                 {PREDEFINED_COLORS.map(color => (
                                                     <button
                                                         key={color.id}
                                                         type="button"
                                                         className={`color-swatch flex-center ${formData.color === color.id ? 'selected' : ''}`}
                                                         style={{ backgroundColor: color.hex }}
-                                                        onClick={() => setFormData({ ...formData, color: color.id })}
+                                                        onClick={() => { setFormData({ ...formData, color: color.id }); setIsColorPopupOpen(false); }}
                                                         title={color.label}
                                                     >
                                                         {formData.color === color.id && <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>}
                                                     </button>
                                                 ))}
+
+                                                {/* Botón de Extra Colores (Creación) */}
+                                                <button
+                                                    type="button"
+                                                    className={`color-swatch color-swatch-more flex-center ${EXTRA_COLORS.some(c => c.id === formData.color) ? 'selected' : ''}`}
+                                                    onClick={(e) => { e.stopPropagation(); setIsColorPopupOpen(!isColorPopupOpen); }}
+                                                    title="Más Colores"
+                                                >
+                                                    {EXTRA_COLORS.some(c => c.id === formData.color)
+                                                        ? <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" width="18" height="18"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                        : "+"}
+                                                </button>
+
+                                                {/* Menú Flotante de Extra Colores (Creación) */}
+                                                {isColorPopupOpen && (
+                                                    <div className="extra-colors-popup" onClick={e => e.stopPropagation()}>
+                                                        {EXTRA_COLORS.map(color => (
+                                                            <button
+                                                                key={color.id}
+                                                                type="button"
+                                                                className={`color-swatch flex-center ${formData.color === color.id ? 'selected' : ''}`}
+                                                                style={{ backgroundColor: color.hex }}
+                                                                onClick={() => { setFormData({ ...formData, color: color.id }); setIsColorPopupOpen(false); }}
+                                                                title={color.label}
+                                                            >
+                                                                {formData.color === color.id && <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" width="18" height="18"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
@@ -886,7 +926,7 @@ const AgendaView = ({ onGoBack }) => {
                                             </div>
 
                                             {isEditingColor && (
-                                                <div className="inline-color-picker">
+                                                <div className="inline-color-picker colors-wrapper">
                                                     {PREDEFINED_COLORS.map(color => (
                                                         <button
                                                             key={color.id}
@@ -896,12 +936,46 @@ const AgendaView = ({ onGoBack }) => {
                                                             onClick={() => {
                                                                 setSelectedEntryData({ ...selectedEntryData, color: color.id });
                                                                 setIsEditingColor(false);
+                                                                setIsColorPopupOpen(false);
                                                             }}
                                                             title={color.label}
                                                         >
                                                             {selectedEntryData.color === color.id && <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" width="14" height="14"><polyline points="20 6 9 17 4 12"></polyline></svg>}
                                                         </button>
                                                     ))}
+
+                                                    {/* Botón de Extra Colores (Config) */}
+                                                    <button
+                                                        type="button"
+                                                        className={`color-swatch color-swatch-more flex-center ${EXTRA_COLORS.some(c => c.id === selectedEntryData.color) ? 'selected' : ''}`}
+                                                        style={{ width: '24px', height: '24px', fontSize: '1rem' }}
+                                                        onClick={(e) => { e.stopPropagation(); setIsColorPopupOpen(!isColorPopupOpen); }}
+                                                        title="Más Colores"
+                                                    >
+                                                        +
+                                                    </button>
+
+                                                    {/* Menú Flotante de Extra Colores (Config) */}
+                                                    {isColorPopupOpen && (
+                                                        <div className="extra-colors-popup" style={{ top: '35px', left: '0px' }} onClick={e => e.stopPropagation()}>
+                                                            {EXTRA_COLORS.map(color => (
+                                                                <button
+                                                                    key={color.id}
+                                                                    type="button"
+                                                                    className={`color-swatch flex-center ${selectedEntryData.color === color.id ? 'selected' : ''}`}
+                                                                    style={{ backgroundColor: color.hex, width: '24px', height: '24px' }}
+                                                                    onClick={() => {
+                                                                        setSelectedEntryData({ ...selectedEntryData, color: color.id });
+                                                                        setIsColorPopupOpen(false);
+                                                                        setIsEditingColor(false);
+                                                                    }}
+                                                                    title={color.label}
+                                                                >
+                                                                    {selectedEntryData.color === color.id && <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" width="14" height="14"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>

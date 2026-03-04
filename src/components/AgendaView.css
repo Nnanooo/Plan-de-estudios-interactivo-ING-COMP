@@ -1063,21 +1063,24 @@ body.dark-mode .legend-details {
         display: none !important;
     }
 
-    /* Achicar anchos y textos para que entre la grilla */
+    /* Achicar anchos y textos para que entre la grilla de 6 dias */
     .time-header {
-        width: 60px;
-        font-size: 0.8rem;
-        padding: 0.5rem 0;
+        width: 50px;
+        font-size: 0.75rem;
+        padding: 0.4rem 0;
     }
 
     .day-header {
-        font-size: 0.85rem;
-        padding: 0.5rem 0;
+        font-size: 0.75rem;
+        padding: 0.4rem 0;
+        word-break: break-word;
+        /* Para que 'Miércoles' se separe si falta lugar */
+        hyphens: auto;
     }
 
     .time-cell {
-        font-size: 0.75rem;
-        padding: 0 0.25rem !important;
+        font-size: 0.7rem;
+        padding: 0 0.2rem !important;
     }
 
     .empty-placeholder {

@@ -13,7 +13,7 @@ const PREDEFINED_COLORS = [
 ];
 
 const AgendaView = ({ onGoBack }) => {
-    const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+    const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     const timeBlocks = [
         '08:00 - 10:00',
         '10:00 - 12:00',
@@ -22,6 +22,8 @@ const AgendaView = ({ onGoBack }) => {
         '18:00 - 20:00',
         '20:00 - 22:00'
     ];
+
+    const materiaStartBlocks = [timeBlocks[0], timeBlocks[2], timeBlocks[4]];
 
     // Estados persistentes
     const [entries, setEntries] = useState(() => {
@@ -46,6 +48,8 @@ const AgendaView = ({ onGoBack }) => {
         isDouble2: false,    // Carga doble horaria del segundo encuentro
         startBlock2: timeBlocks[0],
         endBlock2: timeBlocks[1],
+        realTime: '',        // Horario personalizado real para Cursos Extra
+        realTime2: '',       // Horario personalizado real para Día 2 de Cursos Extra
         color: PREDEFINED_COLORS[0].id
     });
 
@@ -143,6 +147,8 @@ const AgendaView = ({ onGoBack }) => {
             isDouble2: false,
             startBlock2: timeBlocks[0],
             endBlock2: timeBlocks[1],
+            realTime: '',
+            realTime2: '',
             color: PREDEFINED_COLORS[0].id
         });
         setIsModalOpen(true);
@@ -164,17 +170,28 @@ const AgendaView = ({ onGoBack }) => {
         if (!formData.name.trim()) return alert("Debe ingresar un nombre");
 
         // Calcular bloques ocupados
-        let blocksOccupied = [formData.startBlock];
+        let blocksOccupied = [];
 
-        if (formData.isDouble) {
+        if (formData.type === 'Materia') {
             const startIndex = timeBlocks.indexOf(formData.startBlock);
-            const endIndex = timeBlocks.indexOf(formData.endBlock);
+            let endIndex = startIndex + 1; // Default 4 hs (2 bloques)
+            if (formData.isDouble) {
+                endIndex = timeBlocks.indexOf(formData.endBlock) + 1;
+            }
+            if (formData.isDouble && startIndex >= endIndex - 1) return alert("El horario de fin debe ser posterior al de inicio");
 
-            if (startIndex >= endIndex) return alert("El horario de fin debe ser posterior al de inicio");
-
-            // Llenar todos los bloques intermedios
-            for (let i = startIndex + 1; i <= endIndex; i++) {
-                blocksOccupied.push(timeBlocks[i]);
+            for (let i = startIndex; i <= endIndex; i++) {
+                if (timeBlocks[i]) blocksOccupied.push(timeBlocks[i]);
+            }
+        } else {
+            blocksOccupied = [formData.startBlock];
+            if (formData.isDouble) {
+                const startIndex = timeBlocks.indexOf(formData.startBlock);
+                const endIndex = timeBlocks.indexOf(formData.endBlock);
+                if (startIndex >= endIndex) return alert("El horario de fin debe ser posterior al de inicio");
+                for (let i = startIndex + 1; i <= endIndex; i++) {
+                    blocksOccupied.push(timeBlocks[i]);
+                }
             }
         }
 
@@ -196,16 +213,27 @@ const AgendaView = ({ onGoBack }) => {
         if (formData.hasSecondDay) {
             if (formData.day === formData.day2) return alert("El segundo día debe ser diferente al primero");
 
-            blocksOccupied2 = [formData.startBlock2];
-
-            if (formData.isDouble2) {
+            if (formData.type === 'Materia') {
                 const startIndex2 = timeBlocks.indexOf(formData.startBlock2);
-                const endIndex2 = timeBlocks.indexOf(formData.endBlock2);
+                let endIndex2 = startIndex2 + 1;
+                if (formData.isDouble2) {
+                    endIndex2 = timeBlocks.indexOf(formData.endBlock2) + 1;
+                }
+                if (formData.isDouble2 && startIndex2 >= endIndex2 - 1) return alert(`El horario de fin del ${formData.day2} debe ser posterior al de inicio`);
 
-                if (startIndex2 >= endIndex2) return alert(`El horario de fin del ${formData.day2} debe ser posterior al de inicio`);
+                for (let i = startIndex2; i <= endIndex2; i++) {
+                    if (timeBlocks[i]) blocksOccupied2.push(timeBlocks[i]);
+                }
+            } else {
+                blocksOccupied2 = [formData.startBlock2];
+                if (formData.isDouble2) {
+                    const startIndex2 = timeBlocks.indexOf(formData.startBlock2);
+                    const endIndex2 = timeBlocks.indexOf(formData.endBlock2);
+                    if (startIndex2 >= endIndex2) return alert(`El horario de fin del ${formData.day2} debe ser posterior al de inicio`);
 
-                for (let i = startIndex2 + 1; i <= endIndex2; i++) {
-                    blocksOccupied2.push(timeBlocks[i]);
+                    for (let i = startIndex2 + 1; i <= endIndex2; i++) {
+                        blocksOccupied2.push(timeBlocks[i]);
+                    }
                 }
             }
 
@@ -231,6 +259,7 @@ const AgendaView = ({ onGoBack }) => {
             name: formData.name.trim(),
             day: formData.day,
             blocks: blocksOccupied,
+            realTime: formData.type === 'Curso' ? formData.realTime.trim() : '',
             color: formData.color
         };
 
@@ -243,6 +272,7 @@ const AgendaView = ({ onGoBack }) => {
                 name: formData.name.trim(),
                 day: formData.day2,
                 blocks: blocksOccupied2,
+                realTime: formData.type === 'Curso' ? formData.realTime2.trim() : '',
                 color: formData.color
             };
             newEntries.push(entryDay2);
@@ -317,13 +347,25 @@ const AgendaView = ({ onGoBack }) => {
         // --- CALCULO Y VERIFICACIÓN DE COLISIONES SÓLO SI SE EDITÓ HORARIO ---
         if (isEditingTime) {
             // DIA 1 (Selected)
-            blocksToUpdate1 = [selectedEntryData.startBlock || timeBlocks[0]];
-            if (selectedEntryData.isDouble) {
-                const s1 = timeBlocks.indexOf(blocksToUpdate1[0]);
-                const e1 = timeBlocks.indexOf(selectedEntryData.endBlock || timeBlocks[1]);
-                if (s1 >= e1) return alert("Horario Día 1: Fin debe ser posterior al inicio");
-                for (let i = s1 + 1; i <= e1; i++) blocksToUpdate1.push(timeBlocks[i]);
+            if (selectedEntryData.type === 'Materia') {
+                const s1 = timeBlocks.indexOf(selectedEntryData.startBlock || timeBlocks[0]);
+                let e1 = s1 + 1;
+                if (selectedEntryData.isDouble) {
+                    e1 = timeBlocks.indexOf(selectedEntryData.endBlock || timeBlocks[1]) + 1;
+                }
+                if (selectedEntryData.isDouble && s1 >= e1 - 1) return alert("Horario Día 1: Fin debe ser posterior al inicio");
+                blocksToUpdate1 = [];
+                for (let i = s1; i <= e1; i++) if (timeBlocks[i]) blocksToUpdate1.push(timeBlocks[i]);
+            } else {
+                blocksToUpdate1 = [selectedEntryData.startBlock || timeBlocks[0]];
+                if (selectedEntryData.isDouble) {
+                    const s1 = timeBlocks.indexOf(blocksToUpdate1[0]);
+                    const e1 = timeBlocks.indexOf(selectedEntryData.endBlock || timeBlocks[1]);
+                    if (s1 >= e1) return alert("Horario Día 1: Fin debe ser posterior al inicio");
+                    for (let i = s1 + 1; i <= e1; i++) blocksToUpdate1.push(timeBlocks[i]);
+                }
             }
+
             const col1 = entries.some(entry => {
                 if (entry.id !== selectedEntryData.id && entry.id !== (siblingEntryData?.id) && entry.day === selectedEntryData.day) {
                     return entry.blocks.some(b => blocksToUpdate1.includes(b));
@@ -334,13 +376,25 @@ const AgendaView = ({ onGoBack }) => {
 
             // DIA 2 (Sibling)
             if (siblingEntryData) {
-                blocksToUpdate2 = [siblingEntryData.startBlock || timeBlocks[0]];
-                if (siblingEntryData.isDouble) {
-                    const s2 = timeBlocks.indexOf(blocksToUpdate2[0]);
-                    const e2 = timeBlocks.indexOf(siblingEntryData.endBlock || timeBlocks[1]);
-                    if (s2 >= e2) return alert("Horario Día 2: Fin debe ser posterior al inicio");
-                    for (let i = s2 + 1; i <= e2; i++) blocksToUpdate2.push(timeBlocks[i]);
+                if (siblingEntryData.type === 'Materia') {
+                    const s2 = timeBlocks.indexOf(siblingEntryData.startBlock || timeBlocks[0]);
+                    let e2 = s2 + 1;
+                    if (siblingEntryData.isDouble) {
+                        e2 = timeBlocks.indexOf(siblingEntryData.endBlock || timeBlocks[1]) + 1;
+                    }
+                    if (siblingEntryData.isDouble && s2 >= e2 - 1) return alert("Horario Día 2: Fin debe ser posterior al inicio");
+                    blocksToUpdate2 = [];
+                    for (let i = s2; i <= e2; i++) if (timeBlocks[i]) blocksToUpdate2.push(timeBlocks[i]);
+                } else {
+                    blocksToUpdate2 = [siblingEntryData.startBlock || timeBlocks[0]];
+                    if (siblingEntryData.isDouble) {
+                        const s2 = timeBlocks.indexOf(blocksToUpdate2[0]);
+                        const e2 = timeBlocks.indexOf(siblingEntryData.endBlock || timeBlocks[1]);
+                        if (s2 >= e2) return alert("Horario Día 2: Fin debe ser posterior al inicio");
+                        for (let i = s2 + 1; i <= e2; i++) blocksToUpdate2.push(timeBlocks[i]);
+                    }
                 }
+
                 const col2 = entries.some(entry => {
                     if (entry.id !== siblingEntryData.id && entry.id !== selectedEntryData.id && entry.day === siblingEntryData.day) {
                         return entry.blocks.some(b => blocksToUpdate2.includes(b));
@@ -458,13 +512,22 @@ const AgendaView = ({ onGoBack }) => {
                                                         <span className="entry-name" style={{ marginTop: isFirstBlock ? '0' : 'auto', opacity: isFirstBlock ? 1 : 0.9 }}>
                                                             {entry.name}
                                                         </span>
-                                                        {isFirstBlock && entry.displayPreference && entry.displayPreference !== 'none' && (
-                                                            <span className="entry-info-tag">
-                                                                {entry.displayPreference === 'aula' && `Aula: ${entry.room || '-'}`}
-                                                                {entry.displayPreference === 'pp' && `PP: ${formatDate(entry.ppDate)}`}
-                                                                {entry.displayPreference === 'sp' && `SP: ${formatDate(entry.spDate)}`}
-                                                                {entry.displayPreference === 'tp' && `TP: ${formatDate(entry.tpDate)}`}
-                                                            </span>
+                                                        {isFirstBlock && (entry.realTime || (entry.displayPreference && entry.displayPreference !== 'none')) && (
+                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', justifyContent: 'center', marginTop: 'auto' }}>
+                                                                {entry.realTime && (
+                                                                    <span className="entry-info-tag" style={{ margin: 0, color: '#fff', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px 4px', borderRadius: '4px', fontSize: '0.7rem' }}>
+                                                                        {entry.realTime}
+                                                                    </span>
+                                                                )}
+                                                                {entry.displayPreference && entry.displayPreference !== 'none' && (
+                                                                    <span className="entry-info-tag" style={{ margin: 0, fontSize: '0.7rem' }}>
+                                                                        {entry.displayPreference === 'aula' && `Aula: ${entry.room || '-'}`}
+                                                                        {entry.displayPreference === 'pp' && `PP: ${formatDate(entry.ppDate)}`}
+                                                                        {entry.displayPreference === 'sp' && `SP: ${formatDate(entry.spDate)}`}
+                                                                        {entry.displayPreference === 'tp' && `TP: ${formatDate(entry.tpDate)}`}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         )}
                                                     </div>
                                                 ) : (
@@ -511,7 +574,7 @@ const AgendaView = ({ onGoBack }) => {
                                                 const end = b.blocks[b.blocks.length - 1] ? b.blocks[b.blocks.length - 1].split(' - ')[1] : '';
                                                 return (
                                                     <span key={i} className="legend-time">
-                                                        {b.day}, {start} - {end}{i < entry.allBlocks.length - 1 ? ' | ' : ''}
+                                                        {b.day}, {entry.realTime ? entry.realTime + ' (Real)' : `${start} - ${end}`}{i < entry.allBlocks.length - 1 ? ' | ' : ''}
                                                     </span>
                                                 );
                                             })}
@@ -641,7 +704,13 @@ const AgendaView = ({ onGoBack }) => {
                                                             value={formData.startBlock}
                                                             onChange={e => setFormData({ ...formData, startBlock: e.target.value })}
                                                         >
-                                                            {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                            {(formData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
+                                                                <option key={t} value={t}>
+                                                                    {formData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
+                                                                        ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
+                                                                        : t}
+                                                                </option>
+                                                            ))}
                                                         </select>
                                                     </div>
                                                     {formData.isDouble && (
@@ -651,11 +720,30 @@ const AgendaView = ({ onGoBack }) => {
                                                                 value={formData.endBlock}
                                                                 onChange={e => setFormData({ ...formData, endBlock: e.target.value })}
                                                             >
-                                                                {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                                {(formData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
+                                                                    <option key={t} value={t}>
+                                                                        {formData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
+                                                                            ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
+                                                                            : t}
+                                                                    </option>
+                                                                ))}
                                                             </select>
                                                         </div>
                                                     )}
                                                 </div>
+                                                {formData.type === 'Curso' && (
+                                                    <div className="form-row">
+                                                        <div className="form-group" style={{ width: '100%' }}>
+                                                            <label>Horario Real (Opcional)</label>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Ej: 19:00 - 21:00 hs"
+                                                                value={formData.realTime}
+                                                                onChange={e => setFormData({ ...formData, realTime: e.target.value })}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* --- COLUMNA DÍA 2 --- */}
@@ -692,7 +780,13 @@ const AgendaView = ({ onGoBack }) => {
                                                                 value={formData.startBlock2}
                                                                 onChange={e => setFormData({ ...formData, startBlock2: e.target.value })}
                                                             >
-                                                                {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                                {(formData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
+                                                                    <option key={t} value={t}>
+                                                                        {formData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
+                                                                            ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
+                                                                            : t}
+                                                                    </option>
+                                                                ))}
                                                             </select>
                                                         </div>
                                                         {formData.isDouble2 && (
@@ -702,11 +796,30 @@ const AgendaView = ({ onGoBack }) => {
                                                                     value={formData.endBlock2}
                                                                     onChange={e => setFormData({ ...formData, endBlock2: e.target.value })}
                                                                 >
-                                                                    {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                                    {(formData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
+                                                                        <option key={t} value={t}>
+                                                                            {formData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
+                                                                                ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
+                                                                                : t}
+                                                                        </option>
+                                                                    ))}
                                                                 </select>
                                                             </div>
                                                         )}
                                                     </div>
+                                                    {formData.type === 'Curso' && (
+                                                        <div className="form-row">
+                                                            <div className="form-group" style={{ width: '100%' }}>
+                                                                <label>Horario Real del Día 2 (Opcional)</label>
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Ej: 19:00 - 21:00 hs"
+                                                                    value={formData.realTime2}
+                                                                    onChange={e => setFormData({ ...formData, realTime2: e.target.value })}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -977,7 +1090,13 @@ const AgendaView = ({ onGoBack }) => {
                                                                 value={selectedEntryData.startBlock || selectedEntryData.blocks[0]}
                                                                 onChange={e => setSelectedEntryData({ ...selectedEntryData, startBlock: e.target.value })}
                                                             >
-                                                                {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                                {(selectedEntryData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
+                                                                    <option key={t} value={t}>
+                                                                        {selectedEntryData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
+                                                                            ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
+                                                                            : t}
+                                                                    </option>
+                                                                ))}
                                                             </select>
                                                         </div>
                                                         {selectedEntryData.isDouble && (
@@ -987,7 +1106,13 @@ const AgendaView = ({ onGoBack }) => {
                                                                     value={selectedEntryData.endBlock || selectedEntryData.blocks[selectedEntryData.blocks.length - 1]}
                                                                     onChange={e => setSelectedEntryData({ ...selectedEntryData, endBlock: e.target.value })}
                                                                 >
-                                                                    {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                                    {(selectedEntryData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
+                                                                        <option key={t} value={t}>
+                                                                            {selectedEntryData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
+                                                                                ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
+                                                                                : t}
+                                                                        </option>
+                                                                    ))}
                                                                 </select>
                                                             </div>
                                                         )}
@@ -1019,7 +1144,13 @@ const AgendaView = ({ onGoBack }) => {
                                                                 value={siblingEntryData.startBlock || siblingEntryData.blocks[0]}
                                                                 onChange={e => setSiblingEntryData({ ...siblingEntryData, startBlock: e.target.value })}
                                                             >
-                                                                {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                                {(siblingEntryData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
+                                                                    <option key={t} value={t}>
+                                                                        {siblingEntryData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
+                                                                            ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
+                                                                            : t}
+                                                                    </option>
+                                                                ))}
                                                             </select>
                                                         </div>
                                                         {siblingEntryData.isDouble && (
@@ -1029,7 +1160,13 @@ const AgendaView = ({ onGoBack }) => {
                                                                     value={siblingEntryData.endBlock || siblingEntryData.blocks[siblingEntryData.blocks.length - 1]}
                                                                     onChange={e => setSiblingEntryData({ ...siblingEntryData, endBlock: e.target.value })}
                                                                 >
-                                                                    {timeBlocks.map(t => <option key={t} value={t}>{t}</option>)}
+                                                                    {(siblingEntryData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
+                                                                        <option key={t} value={t}>
+                                                                            {siblingEntryData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
+                                                                                ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
+                                                                                : t}
+                                                                        </option>
+                                                                    ))}
                                                                 </select>
                                                             </div>
                                                         )}

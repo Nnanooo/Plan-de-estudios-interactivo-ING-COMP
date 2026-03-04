@@ -78,7 +78,12 @@ const AuthModal = ({ onClose, onLoginSuccess }) => {
 
                 const { data, error } = await supabase.auth.signUp({
                     email,
-                    password
+                    password,
+                    options: {
+                        data: {
+                            nombre: nombre
+                        }
+                    }
                 });
 
                 if (error) {

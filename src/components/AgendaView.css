@@ -1240,3 +1240,110 @@ body.dark-mode .legend-details {
         justify-content: center;
     }
 }
+
+/* ============================
+   GRID DROPDOWN CUSTOM
+   ============================ */
+
+.grid-dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
+.grid-dropdown-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    padding: 0.6rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+    height: 100%;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.grid-dropdown-btn:hover {
+    border-color: #94a3b8;
+    background-color: #f8fafc;
+}
+
+.grid-dropdown-btn .chevron {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.grid-dropdown-btn .chevron.open {
+    transform: rotate(180deg);
+}
+
+.grid-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 150px;
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+    padding: 0.5rem;
+    z-index: 100;
+    transform-origin: top right;
+}
+
+.grid-dropdown-item {
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+}
+
+.grid-dropdown-item:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+
+.grid-dropdown-item.active {
+    background-color: #eff6ff;
+    color: #2563eb;
+}
+
+body.dark-mode .grid-dropdown-btn {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+body.dark-mode .grid-dropdown-btn:hover {
+    background-color: #334155;
+    border-color: #475569;
+}
+
+body.dark-mode .grid-dropdown-menu {
+    background-color: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .grid-dropdown-item {
+    color: #cbd5e1;
+}
+
+body.dark-mode .grid-dropdown-item:hover {
+    background-color: #334155;
+    color: #f8fafc;
+}
+
+body.dark-mode .grid-dropdown-item.active {
+    background-color: #1e3a8a;
+    color: #bfdbfe;
+}

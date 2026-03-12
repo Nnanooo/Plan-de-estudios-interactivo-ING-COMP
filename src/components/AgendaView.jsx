@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { planData, opcionales1, opcionales2, electivas1, electivas2, correlativasOptativas } from '../utils/planData';
 import './AgendaView.css';
@@ -20,14 +20,56 @@ const EXTRA_COLORS = [
 ];
 
 const AgendaView = ({ onGoBack }) => {
+    const [gridMode, setGridMode] = useState(() => localStorage.getItem('agendaGridMode') || '2hs');
+    const [isGridDropdownOpen, setIsGridDropdownOpen] = useState(false);
+    const gridDropdownRef = useRef(null);
+
     const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const timeBlocks = [
+
+    const blocks1h = Array.from({ length: 14 }, (_, i) => `${String(8 + i).padStart(2, '0')}:00 - ${String(9 + i).padStart(2, '0')}:00`);
+    const blocks2h = [
         '08:00 - 10:00',
         '10:00 - 12:00',
+        '12:00 - 14:00',
         '14:00 - 16:00',
         '16:00 - 18:00',
         '18:00 - 20:00',
         '20:00 - 22:00'
+    ];
+
+    const timeBlocks = gridMode === '1hs' ? blocks1h : blocks2h;
+
+    const parseTimeBlock = (blockStr) => {
+        const [start, end] = blockStr.split(' - ');
+        return [parseInt(start.split(':')[0]), parseInt(end.split(':')[0])];
+    };
+
+    const getEntrySpan = (blocks, realTimeStr = null) => {
+        if (realTimeStr) {
+            const match = realTimeStr.match(/(\d{1,2})[^\d]*?-[^\d]*?(\d{1,2})/);
+            if (match) {
+                return [parseInt(match[1]), parseInt(match[2])];
+            }
+        }
+        if (!blocks || blocks.length === 0) return [0, 0];
+        let minStart = 24;
+        let maxEnd = 0;
+        blocks.forEach(b => {
+            const [s, e] = parseTimeBlock(b);
+            if (s < minStart) minStart = s;
+            if (e > maxEnd) maxEnd = e;
+        });
+        return [minStart, maxEnd];
+    };
+
+    const defaultClassBlocks = [
+        { label: '08:00 - 10:00', start: 8, end: 10 },
+        { label: '10:00 - 12:00', start: 10, end: 12 },
+        { label: '12:00 - 14:00', start: 12, end: 14 },
+        { label: '14:00 - 16:00', start: 14, end: 16 },
+        { label: '16:00 - 18:00', start: 16, end: 18 },
+        { label: '18:00 - 20:00', start: 18, end: 20 },
+        { label: '20:00 - 22:00', start: 20, end: 22 }
     ];
 
     const materiaStartBlocks = [timeBlocks[0], timeBlocks[2], timeBlocks[4]];
@@ -37,6 +79,20 @@ const AgendaView = ({ onGoBack }) => {
         const savedMap = localStorage.getItem('agendaEntries');
         return savedMap ? JSON.parse(savedMap) : [];
     });
+
+    useEffect(() => {
+        localStorage.setItem('agendaGridMode', gridMode);
+    }, [gridMode]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (gridDropdownRef.current && !gridDropdownRef.current.contains(event.target)) {
+                setIsGridDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     // Estados del Modal
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -48,16 +104,16 @@ const AgendaView = ({ onGoBack }) => {
         type: '',        // 'Materia' o 'Curso'
         name: '',        // Nombre ingresado
         day: 'Lunes',    // Día de cursada
-        isDouble: false, // Carga doble horaria
-        startBlock: timeBlocks[0],
-        endBlock: timeBlocks[1], // Solo se usa si es doble
-        hasSecondDay: false, // Agregado: ¿Tiene segundo encuentro en la semana?
-        day2: 'Martes',      // Día del segundo encuentro
-        isDouble2: false,    // Carga doble horaria del segundo encuentro
-        startBlock2: timeBlocks[0],
-        endBlock2: timeBlocks[1],
-        realTime: '',        // Horario personalizado real para Cursos Extra
-        realTime2: '',       // Horario personalizado real para Día 2 de Cursos Extra
+        isDouble: false, // isDouble ahora significa "Lapso Personalizado"
+        startBlock: 8,
+        endBlock: 10,
+        hasSecondDay: false,
+        day2: 'Martes',
+        isDouble2: false,
+        startBlock2: 8,
+        endBlock2: 10,
+        realTime: '',
+        realTime2: '',
         color: PREDEFINED_COLORS[0].id
     });
 
@@ -149,13 +205,13 @@ const AgendaView = ({ onGoBack }) => {
             name: '',
             day: 'Lunes',
             isDouble: false,
-            startBlock: timeBlocks[0],
-            endBlock: timeBlocks[1],
+            startBlock: 8,
+            endBlock: 10,
             hasSecondDay: false,
             day2: 'Martes',
             isDouble2: false,
-            startBlock2: timeBlocks[0],
-            endBlock2: timeBlocks[1],
+            startBlock2: 8,
+            endBlock2: 10,
             realTime: '',
             realTime2: '',
             color: PREDEFINED_COLORS[0].id
@@ -178,42 +234,28 @@ const AgendaView = ({ onGoBack }) => {
         // Validación básica
         if (!formData.name.trim()) return alert("Debe ingresar un nombre");
 
-        // Calcular bloques ocupados
-        let blocksOccupied = [];
+        // Helper generador de granularidad 1hs
+        const generate1hBlocks = (startH, endH) => {
+            const blocks = [];
+            for (let i = startH; i < endH; i++) {
+                blocks.push(`${String(i).padStart(2, '0')}:00 - ${String(i + 1).padStart(2, '0')}:00`);
+            }
+            return blocks;
+        };
 
-        if (formData.type === 'Materia') {
-            const startIndex = timeBlocks.indexOf(formData.startBlock);
-            let endIndex = startIndex + 1; // Default 4 hs (2 bloques)
-            if (formData.isDouble) {
-                endIndex = timeBlocks.indexOf(formData.endBlock) + 1;
-            }
-            if (formData.isDouble && startIndex >= endIndex - 1) return alert("El horario de fin debe ser posterior al de inicio");
-
-            for (let i = startIndex; i <= endIndex; i++) {
-                if (timeBlocks[i]) blocksOccupied.push(timeBlocks[i]);
-            }
-        } else {
-            blocksOccupied = [formData.startBlock];
-            if (formData.isDouble) {
-                const startIndex = timeBlocks.indexOf(formData.startBlock);
-                const endIndex = timeBlocks.indexOf(formData.endBlock);
-                if (startIndex >= endIndex) return alert("El horario de fin debe ser posterior al de inicio");
-                for (let i = startIndex + 1; i <= endIndex; i++) {
-                    blocksOccupied.push(timeBlocks[i]);
-                }
-            }
-        }
+        const blocksOccupied = generate1hBlocks(formData.startBlock, formData.endBlock);
 
         // --- Verificación de Colisiones Día 1 ---
         const hasCollision1 = entries.some(entry => {
             if (entry.day === formData.day) {
-                return entry.blocks.some(b => blocksOccupied.includes(b));
+                const [entryStart, entryEnd] = getEntrySpan(entry.blocks, entry.realTime);
+                return Math.max(formData.startBlock, entryStart) < Math.min(formData.endBlock, entryEnd);
             }
             return false;
         });
 
         if (hasCollision1) {
-            toast.error(`Ya hay una materia en ese rango horario del día ${formData.day}`);
+            toast.error(`Ya hay una materia que colisiona en el rango del día ${formData.day}`);
             return; // Bloquear guardado
         }
 
@@ -222,40 +264,19 @@ const AgendaView = ({ onGoBack }) => {
         if (formData.hasSecondDay) {
             if (formData.day === formData.day2) return alert("El segundo día debe ser diferente al primero");
 
-            if (formData.type === 'Materia') {
-                const startIndex2 = timeBlocks.indexOf(formData.startBlock2);
-                let endIndex2 = startIndex2 + 1;
-                if (formData.isDouble2) {
-                    endIndex2 = timeBlocks.indexOf(formData.endBlock2) + 1;
-                }
-                if (formData.isDouble2 && startIndex2 >= endIndex2 - 1) return alert(`El horario de fin del ${formData.day2} debe ser posterior al de inicio`);
-
-                for (let i = startIndex2; i <= endIndex2; i++) {
-                    if (timeBlocks[i]) blocksOccupied2.push(timeBlocks[i]);
-                }
-            } else {
-                blocksOccupied2 = [formData.startBlock2];
-                if (formData.isDouble2) {
-                    const startIndex2 = timeBlocks.indexOf(formData.startBlock2);
-                    const endIndex2 = timeBlocks.indexOf(formData.endBlock2);
-                    if (startIndex2 >= endIndex2) return alert(`El horario de fin del ${formData.day2} debe ser posterior al de inicio`);
-
-                    for (let i = startIndex2 + 1; i <= endIndex2; i++) {
-                        blocksOccupied2.push(timeBlocks[i]);
-                    }
-                }
-            }
+            blocksOccupied2 = generate1hBlocks(formData.startBlock2, formData.endBlock2);
 
             // --- Verificación de Colisiones Día 2 ---
             const hasCollision2 = entries.some(entry => {
                 if (entry.day === formData.day2) {
-                    return entry.blocks.some(b => blocksOccupied2.includes(b));
+                    const [entryStart, entryEnd] = getEntrySpan(entry.blocks, entry.realTime);
+                    return Math.max(formData.startBlock2, entryStart) < Math.min(formData.endBlock2, entryEnd);
                 }
                 return false;
             });
 
             if (hasCollision2) {
-                toast.error(`Ya hay una actividad en ese rango horario del día ${formData.day2}`);
+                toast.error(`Ya hay una actividad que colisiona en el rango del día ${formData.day2}`);
                 return;
             }
         }
@@ -293,7 +314,12 @@ const AgendaView = ({ onGoBack }) => {
     };
 
     const isCellOccupied = (day, block) => {
-        return entries.find(entry => entry.day === day && entry.blocks.includes(block));
+        const [bStart, bEnd] = parseTimeBlock(block);
+        return entries.find(entry => {
+            if (entry.day !== day) return false;
+            const [eStart, eEnd] = getEntrySpan(entry.blocks, entry.realTime);
+            return Math.max(bStart, eStart) < Math.min(bEnd, eEnd);
+        });
     };
 
     const handleOpenConfig = (entry) => {
@@ -356,29 +382,22 @@ const AgendaView = ({ onGoBack }) => {
 
         // --- CALCULO Y VERIFICACIÓN DE COLISIONES SÓLO SI SE EDITÓ HORARIO ---
         if (isEditingTime) {
+            // Helper generador de granularidad 1hs (reused local)
+            const generate1hBlocksLocal = (startH, endH) => {
+                const blocks = [];
+                for (let i = startH; i < endH; i++) {
+                    blocks.push(`${String(i).padStart(2, '0')}:00 - ${String(i + 1).padStart(2, '0')}:00`);
+                }
+                return blocks;
+            };
+
             // DIA 1 (Selected)
-            if (selectedEntryData.type === 'Materia') {
-                const s1 = timeBlocks.indexOf(selectedEntryData.startBlock || timeBlocks[0]);
-                let e1 = s1 + 1;
-                if (selectedEntryData.isDouble) {
-                    e1 = timeBlocks.indexOf(selectedEntryData.endBlock || timeBlocks[1]) + 1;
-                }
-                if (selectedEntryData.isDouble && s1 >= e1 - 1) return alert("Horario Día 1: Fin debe ser posterior al inicio");
-                blocksToUpdate1 = [];
-                for (let i = s1; i <= e1; i++) if (timeBlocks[i]) blocksToUpdate1.push(timeBlocks[i]);
-            } else {
-                blocksToUpdate1 = [selectedEntryData.startBlock || timeBlocks[0]];
-                if (selectedEntryData.isDouble) {
-                    const s1 = timeBlocks.indexOf(blocksToUpdate1[0]);
-                    const e1 = timeBlocks.indexOf(selectedEntryData.endBlock || timeBlocks[1]);
-                    if (s1 >= e1) return alert("Horario Día 1: Fin debe ser posterior al inicio");
-                    for (let i = s1 + 1; i <= e1; i++) blocksToUpdate1.push(timeBlocks[i]);
-                }
-            }
+            blocksToUpdate1 = generate1hBlocksLocal(selectedEntryData.startBlock, selectedEntryData.endBlock);
 
             const col1 = entries.some(entry => {
                 if (entry.id !== selectedEntryData.id && entry.id !== (siblingEntryData?.id) && entry.day === selectedEntryData.day) {
-                    return entry.blocks.some(b => blocksToUpdate1.includes(b));
+                    const [entryStart, entryEnd] = getEntrySpan(entry.blocks, entry.realTime);
+                    return Math.max(selectedEntryData.startBlock, entryStart) < Math.min(selectedEntryData.endBlock, entryEnd);
                 }
                 return false;
             });
@@ -386,28 +405,12 @@ const AgendaView = ({ onGoBack }) => {
 
             // DIA 2 (Sibling)
             if (siblingEntryData) {
-                if (siblingEntryData.type === 'Materia') {
-                    const s2 = timeBlocks.indexOf(siblingEntryData.startBlock || timeBlocks[0]);
-                    let e2 = s2 + 1;
-                    if (siblingEntryData.isDouble) {
-                        e2 = timeBlocks.indexOf(siblingEntryData.endBlock || timeBlocks[1]) + 1;
-                    }
-                    if (siblingEntryData.isDouble && s2 >= e2 - 1) return alert("Horario Día 2: Fin debe ser posterior al inicio");
-                    blocksToUpdate2 = [];
-                    for (let i = s2; i <= e2; i++) if (timeBlocks[i]) blocksToUpdate2.push(timeBlocks[i]);
-                } else {
-                    blocksToUpdate2 = [siblingEntryData.startBlock || timeBlocks[0]];
-                    if (siblingEntryData.isDouble) {
-                        const s2 = timeBlocks.indexOf(blocksToUpdate2[0]);
-                        const e2 = timeBlocks.indexOf(siblingEntryData.endBlock || timeBlocks[1]);
-                        if (s2 >= e2) return alert("Horario Día 2: Fin debe ser posterior al inicio");
-                        for (let i = s2 + 1; i <= e2; i++) blocksToUpdate2.push(timeBlocks[i]);
-                    }
-                }
+                blocksToUpdate2 = generate1hBlocksLocal(siblingEntryData.startBlock, siblingEntryData.endBlock);
 
                 const col2 = entries.some(entry => {
                     if (entry.id !== siblingEntryData.id && entry.id !== selectedEntryData.id && entry.day === siblingEntryData.day) {
-                        return entry.blocks.some(b => blocksToUpdate2.includes(b));
+                        const [entryStart, entryEnd] = getEntrySpan(entry.blocks, entry.realTime);
+                        return Math.max(siblingEntryData.startBlock, entryStart) < Math.min(siblingEntryData.endBlock, entryEnd);
                     }
                     return false;
                 });
@@ -482,7 +485,34 @@ const AgendaView = ({ onGoBack }) => {
                     <p style={{ color: '#64748b', margin: 0 }}>Organiza tus horarios de cursada y estudio</p>
                 </div>
 
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: '8px', position: 'relative' }}>
+
+                    <div ref={gridDropdownRef} className="grid-dropdown-container">
+                        <button
+                            className="grid-dropdown-btn"
+                            onClick={() => setIsGridDropdownOpen(!isGridDropdownOpen)}
+                        >
+                            <span>Lapsos {gridMode === '2hs' ? '2hs' : '1hs'}</span>
+                            <svg className={`chevron ${isGridDropdownOpen ? 'open' : ''}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </button>
+                        {isGridDropdownOpen && (
+                            <div className="grid-dropdown-menu animate-fade-in-down">
+                                <div
+                                    className={`grid-dropdown-item ${gridMode === '2hs' ? 'active' : ''}`}
+                                    onClick={() => { setGridMode('2hs'); setIsGridDropdownOpen(false); }}
+                                >
+                                    Lapsos 2hs
+                                </div>
+                                <div
+                                    className={`grid-dropdown-item ${gridMode === '1hs' ? 'active' : ''}`}
+                                    onClick={() => { setGridMode('1hs'); setIsGridDropdownOpen(false); }}
+                                >
+                                    Lapsos 1hs
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <button className="add-agenda-btn" onClick={handleOpenModal}>
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -510,12 +540,22 @@ const AgendaView = ({ onGoBack }) => {
                                 {days.map(day => {
                                     const entry = isCellOccupied(day, block);
 
-                                    // Comprobar si es el TOP block de una materia multidimensional para renderizar titulo
-                                    const isFirstBlock = entry ? entry.blocks[0] === block : false;
+                                    let isFirstBlock = false;
+                                    let customStyle = {};
+
+                                    if (entry) {
+                                        const [eStart, eEnd] = getEntrySpan(entry.blocks, entry.realTime);
+                                        const [bStart, bEnd] = parseTimeBlock(block);
+
+                                        isFirstBlock = bStart <= eStart && eStart < bEnd;
+                                    }
 
                                     return (
                                         <td key={`${day}-${index}`} className="agenda-cell">
-                                            <div className={`cell-content ${entry ? ('theme-' + (['blue', 'green', 'purple', 'orange', 'pink', 'teal'].includes(entry.color) ? { blue: 'indigo', green: 'emerald', purple: 'violet', orange: 'amber', pink: 'ruby', teal: 'cyan' }[entry.color] : entry.color)) : ''} ${entry && !isFirstBlock ? 'continued-block' : ''}`}>
+                                            <div
+                                                className={`cell-content ${entry ? ('theme-' + (['blue', 'green', 'purple', 'orange', 'pink', 'teal'].includes(entry.color) ? { blue: 'indigo', green: 'emerald', purple: 'violet', orange: 'amber', pink: 'ruby', teal: 'cyan' }[entry.color] : entry.color)) : ''} ${entry && !isFirstBlock ? 'continued-block' : ''}`}
+                                                style={{ ...customStyle }}
+                                            >
                                                 {entry ? (
                                                     <div className="entry-card clickable" onClick={() => handleOpenConfig(entry)}>
                                                         {isFirstBlock && <span className="entry-type">{entry.type}</span>}
@@ -710,32 +750,38 @@ const AgendaView = ({ onGoBack }) => {
                                                 <div className="form-row">
                                                     <div className="form-group half" style={{ width: formData.hasSecondDay ? '100%' : '' }}>
                                                         <label>Horario {formData.isDouble ? 'Inicio' : ''}</label>
-                                                        <select
-                                                            value={formData.startBlock}
-                                                            onChange={e => setFormData({ ...formData, startBlock: e.target.value })}
-                                                        >
-                                                            {(formData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
-                                                                <option key={t} value={t}>
-                                                                    {formData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
-                                                                        ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
-                                                                        : t}
-                                                                </option>
-                                                            ))}
-                                                        </select>
+                                                        {formData.isDouble ? (
+                                                            <select
+                                                                value={formData.startBlock}
+                                                                onChange={e => setFormData({ ...formData, startBlock: parseInt(e.target.value) })}
+                                                            >
+                                                                {Array.from({ length: 14 }, (_, i) => 8 + i).map(h => (
+                                                                    <option key={h} value={h}>{`${String(h).padStart(2, '0')}:00`}</option>
+                                                                ))}
+                                                            </select>
+                                                        ) : (
+                                                            <select
+                                                                value={`${formData.startBlock}-${formData.endBlock}`}
+                                                                onChange={e => {
+                                                                    const [s, eVal] = e.target.value.split('-');
+                                                                    setFormData({ ...formData, startBlock: parseInt(s), endBlock: parseInt(eVal) });
+                                                                }}
+                                                            >
+                                                                {defaultClassBlocks.map(b => (
+                                                                    <option key={b.label} value={`${b.start}-${b.end}`}>{b.label}</option>
+                                                                ))}
+                                                            </select>
+                                                        )}
                                                     </div>
                                                     {formData.isDouble && (
                                                         <div className="form-group half" style={{ width: formData.hasSecondDay ? '100%' : '' }}>
                                                             <label>Horario Fin</label>
                                                             <select
                                                                 value={formData.endBlock}
-                                                                onChange={e => setFormData({ ...formData, endBlock: e.target.value })}
+                                                                onChange={e => setFormData({ ...formData, endBlock: parseInt(e.target.value) })}
                                                             >
-                                                                {(formData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
-                                                                    <option key={t} value={t}>
-                                                                        {formData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
-                                                                            ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
-                                                                            : t}
-                                                                    </option>
+                                                                {Array.from({ length: 14 }, (_, i) => 9 + i).filter(h => h > formData.startBlock).map(h => (
+                                                                    <option key={h} value={h}>{`${String(h).padStart(2, '0')}:00`}</option>
                                                                 ))}
                                                             </select>
                                                         </div>
@@ -786,32 +832,38 @@ const AgendaView = ({ onGoBack }) => {
                                                     <div className="form-row">
                                                         <div className="form-group" style={{ width: '100%' }}>
                                                             <label>Horario {formData.isDouble2 ? 'Inicio' : ''}</label>
-                                                            <select
-                                                                value={formData.startBlock2}
-                                                                onChange={e => setFormData({ ...formData, startBlock2: e.target.value })}
-                                                            >
-                                                                {(formData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
-                                                                    <option key={t} value={t}>
-                                                                        {formData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
-                                                                            ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
-                                                                            : t}
-                                                                    </option>
-                                                                ))}
-                                                            </select>
+                                                            {formData.isDouble2 ? (
+                                                                <select
+                                                                    value={formData.startBlock2}
+                                                                    onChange={e => setFormData({ ...formData, startBlock2: parseInt(e.target.value) })}
+                                                                >
+                                                                    {Array.from({ length: 14 }, (_, i) => 8 + i).map(h => (
+                                                                        <option key={h} value={h}>{`${String(h).padStart(2, '0')}:00`}</option>
+                                                                    ))}
+                                                                </select>
+                                                            ) : (
+                                                                <select
+                                                                    value={`${formData.startBlock2}-${formData.endBlock2}`}
+                                                                    onChange={e => {
+                                                                        const [s, eVal] = e.target.value.split('-');
+                                                                        setFormData({ ...formData, startBlock2: parseInt(s), endBlock2: parseInt(eVal) });
+                                                                    }}
+                                                                >
+                                                                    {defaultClassBlocks.map(b => (
+                                                                        <option key={b.label} value={`${b.start}-${b.end}`}>{b.label}</option>
+                                                                    ))}
+                                                                </select>
+                                                            )}
                                                         </div>
                                                         {formData.isDouble2 && (
                                                             <div className="form-group" style={{ width: '100%' }}>
                                                                 <label>Horario Fin</label>
                                                                 <select
                                                                     value={formData.endBlock2}
-                                                                    onChange={e => setFormData({ ...formData, endBlock2: e.target.value })}
+                                                                    onChange={e => setFormData({ ...formData, endBlock2: parseInt(e.target.value) })}
                                                                 >
-                                                                    {(formData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
-                                                                        <option key={t} value={t}>
-                                                                            {formData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
-                                                                                ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
-                                                                                : t}
-                                                                        </option>
+                                                                    {Array.from({ length: 14 }, (_, i) => 9 + i).filter(h => h > formData.startBlock2).map(h => (
+                                                                        <option key={h} value={h}>{`${String(h).padStart(2, '0')}:00`}</option>
                                                                     ))}
                                                                 </select>
                                                             </div>
@@ -1083,20 +1135,28 @@ const AgendaView = ({ onGoBack }) => {
                                                     <button type="button" className="btn-gray" onClick={() => {
                                                         setIsEditingTime(true);
                                                         // Init states para Dia 1
-                                                        setSelectedEntryData(prev => ({
-                                                            ...prev,
-                                                            isDouble: prev.blocks.length > 1,
-                                                            startBlock: prev.blocks[0],
-                                                            endBlock: prev.blocks[prev.blocks.length - 1]
-                                                        }));
+                                                        setSelectedEntryData(prev => {
+                                                            const [s, eVal] = getEntrySpan(prev.blocks, prev.realTime);
+                                                            const matchesPredefined = defaultClassBlocks.some(b => b.start === s && b.end === eVal);
+                                                            return {
+                                                                ...prev,
+                                                                isDouble: !matchesPredefined,
+                                                                startBlock: s,
+                                                                endBlock: eVal
+                                                            };
+                                                        });
                                                         // Init states para Dia 2 si existe
                                                         if (siblingEntryData) {
-                                                            setSiblingEntryData(prev => ({
-                                                                ...prev,
-                                                                isDouble: prev.blocks.length > 1,
-                                                                startBlock: prev.blocks[0],
-                                                                endBlock: prev.blocks[prev.blocks.length - 1]
-                                                            }))
+                                                            setSiblingEntryData(prev => {
+                                                                const [s, eVal] = getEntrySpan(prev.blocks, prev.realTime);
+                                                                const matchesPredefined = defaultClassBlocks.some(b => b.start === s && b.end === eVal);
+                                                                return {
+                                                                    ...prev,
+                                                                    isDouble: !matchesPredefined,
+                                                                    startBlock: s,
+                                                                    endBlock: eVal
+                                                                };
+                                                            });
                                                         }
                                                     }}>
                                                         Cambiar horario
@@ -1160,32 +1220,38 @@ const AgendaView = ({ onGoBack }) => {
                                                         </div>
                                                         <div className="form-group">
                                                             <label>Horario {selectedEntryData.isDouble ? 'Inicio' : ''}</label>
-                                                            <select
-                                                                value={selectedEntryData.startBlock || selectedEntryData.blocks[0]}
-                                                                onChange={e => setSelectedEntryData({ ...selectedEntryData, startBlock: e.target.value })}
-                                                            >
-                                                                {(selectedEntryData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
-                                                                    <option key={t} value={t}>
-                                                                        {selectedEntryData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
-                                                                            ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
-                                                                            : t}
-                                                                    </option>
-                                                                ))}
-                                                            </select>
+                                                            {selectedEntryData.isDouble ? (
+                                                                <select
+                                                                    value={selectedEntryData.startBlock}
+                                                                    onChange={e => setSelectedEntryData({ ...selectedEntryData, startBlock: parseInt(e.target.value) })}
+                                                                >
+                                                                    {Array.from({ length: 14 }, (_, i) => 8 + i).map(h => (
+                                                                        <option key={h} value={h}>{`${String(h).padStart(2, '0')}:00`}</option>
+                                                                    ))}
+                                                                </select>
+                                                            ) : (
+                                                                <select
+                                                                    value={`${selectedEntryData.startBlock}-${selectedEntryData.endBlock}`}
+                                                                    onChange={e => {
+                                                                        const [s, eVal] = e.target.value.split('-');
+                                                                        setSelectedEntryData({ ...selectedEntryData, startBlock: parseInt(s), endBlock: parseInt(eVal) });
+                                                                    }}
+                                                                >
+                                                                    {defaultClassBlocks.map(b => (
+                                                                        <option key={b.label} value={`${b.start}-${b.end}`}>{b.label}</option>
+                                                                    ))}
+                                                                </select>
+                                                            )}
                                                         </div>
                                                         {selectedEntryData.isDouble && (
                                                             <div className="form-group">
                                                                 <label>Horario Fin</label>
                                                                 <select
-                                                                    value={selectedEntryData.endBlock || selectedEntryData.blocks[selectedEntryData.blocks.length - 1]}
-                                                                    onChange={e => setSelectedEntryData({ ...selectedEntryData, endBlock: e.target.value })}
+                                                                    value={selectedEntryData.endBlock}
+                                                                    onChange={e => setSelectedEntryData({ ...selectedEntryData, endBlock: parseInt(e.target.value) })}
                                                                 >
-                                                                    {(selectedEntryData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
-                                                                        <option key={t} value={t}>
-                                                                            {selectedEntryData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
-                                                                                ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
-                                                                                : t}
-                                                                        </option>
+                                                                    {Array.from({ length: 14 }, (_, i) => 9 + i).filter(h => h > selectedEntryData.startBlock).map(h => (
+                                                                        <option key={h} value={h}>{`${String(h).padStart(2, '0')}:00`}</option>
                                                                     ))}
                                                                 </select>
                                                             </div>
@@ -1214,32 +1280,38 @@ const AgendaView = ({ onGoBack }) => {
                                                         </div>
                                                         <div className="form-group">
                                                             <label>Horario {siblingEntryData.isDouble ? 'Inicio' : ''}</label>
-                                                            <select
-                                                                value={siblingEntryData.startBlock || siblingEntryData.blocks[0]}
-                                                                onChange={e => setSiblingEntryData({ ...siblingEntryData, startBlock: e.target.value })}
-                                                            >
-                                                                {(siblingEntryData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
-                                                                    <option key={t} value={t}>
-                                                                        {siblingEntryData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
-                                                                            ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
-                                                                            : t}
-                                                                    </option>
-                                                                ))}
-                                                            </select>
+                                                            {siblingEntryData.isDouble ? (
+                                                                <select
+                                                                    value={siblingEntryData.startBlock}
+                                                                    onChange={e => setSiblingEntryData({ ...siblingEntryData, startBlock: parseInt(e.target.value) })}
+                                                                >
+                                                                    {Array.from({ length: 14 }, (_, i) => 8 + i).map(h => (
+                                                                        <option key={h} value={h}>{`${String(h).padStart(2, '0')}:00`}</option>
+                                                                    ))}
+                                                                </select>
+                                                            ) : (
+                                                                <select
+                                                                    value={`${siblingEntryData.startBlock}-${siblingEntryData.endBlock}`}
+                                                                    onChange={e => {
+                                                                        const [s, eVal] = e.target.value.split('-');
+                                                                        setSiblingEntryData({ ...siblingEntryData, startBlock: parseInt(s), endBlock: parseInt(eVal) });
+                                                                    }}
+                                                                >
+                                                                    {defaultClassBlocks.map(b => (
+                                                                        <option key={b.label} value={`${b.start}-${b.end}`}>{b.label}</option>
+                                                                    ))}
+                                                                </select>
+                                                            )}
                                                         </div>
                                                         {siblingEntryData.isDouble && (
                                                             <div className="form-group">
                                                                 <label>Horario Fin</label>
                                                                 <select
-                                                                    value={siblingEntryData.endBlock || siblingEntryData.blocks[siblingEntryData.blocks.length - 1]}
-                                                                    onChange={e => setSiblingEntryData({ ...siblingEntryData, endBlock: e.target.value })}
+                                                                    value={siblingEntryData.endBlock}
+                                                                    onChange={e => setSiblingEntryData({ ...siblingEntryData, endBlock: parseInt(e.target.value) })}
                                                                 >
-                                                                    {(siblingEntryData.type === 'Materia' ? materiaStartBlocks : timeBlocks).map(t => (
-                                                                        <option key={t} value={t}>
-                                                                            {siblingEntryData.type === 'Materia' && timeBlocks[timeBlocks.indexOf(t) + 1]
-                                                                                ? `${t.split(' - ')[0]} - ${timeBlocks[timeBlocks.indexOf(t) + 1].split(' - ')[1]}`
-                                                                                : t}
-                                                                        </option>
+                                                                    {Array.from({ length: 14 }, (_, i) => 9 + i).filter(h => h > siblingEntryData.startBlock).map(h => (
+                                                                        <option key={h} value={h}>{`${String(h).padStart(2, '0')}:00`}</option>
                                                                     ))}
                                                                 </select>
                                                             </div>
